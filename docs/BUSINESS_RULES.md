@@ -418,6 +418,43 @@ open → closed → handed_over
 
 ---
 
+## Champs personnalisés (custom fields)
+
+- Chaque association peut définir des champs libres en plus des champs système
+- Le créateur saisit un **libellé** (`label`) — le système génère automatiquement la **clé** (`key`) normalisée
+- **Normalisation** : trim → lowercase → translitération accents → espaces/spéciaux → `_` → dédoublonnage
+  - `"Num de Compte"` → key = `num_de_compte`
+  - `"Email RH"` → key = `email_rh`
+- Les clés système (`is_custom = 0`) sont **protégées** : non modifiables, non supprimables par l'utilisateur
+- Les champs personnalisés apparaissent dans les états imprimables (entête des PDF)
+- Champs d'identité fixes dans la table `associations` (non key-value) : `slogan`, `logo`, `phone`, `address`, `bp`, `tax_number`, `auth_number`
+  - `tax_number` et `auth_number` ne s'appliquent pas aux `tontine_group` (affichés vides)
+  - `slogan` s'applique aux 3 types d'entités et aux tontines
+
+---
+
+## Business model — Plans SaaS
+
+- Toute entité créée démarre en période d'essai (`trial`) sur le plan `free`
+- Un abonnement actif (`active`) débloque les features et quotas du plan souscrit
+- En cas d'expiration sans renouvellement → downgrade automatique vers `free`
+- Le `QuotaFilter` vérifie les limites **avant chaque action** critique
+
+### Plans
+| Plan | Prix/mois | Entités | Membres | Tontines | Features |
+|------|-----------|---------|---------|----------|----------|
+| `free` | Gratuit | 1 | 15 | 1 | Tontines basiques uniquement |
+| `starter` | ~2 000 XAF | 1 | 50 | 3 | + Emprunts, solidarité, documents, exports CSV |
+| `pro` | ~5 000 XAF | 3 | illimité | illimité | + Bureau, élections, exports PDF |
+| `federation` | ~15 000 XAF | illimité | illimité | illimité | + Fédération, sous-associations |
+
+### Règles
+- Les limites (`max_members`, `max_tontines`, `max_entities`) sont vérifiées à la création, pas rétroactivement
+- Un downgrade ne supprime pas les données existantes, mais bloque les nouvelles créations
+- Paiement accepté : MTN Mobile Money, Orange Money, virement manuel
+
+---
+
 ## Documents
 
 - Les statuts et règlements peuvent être marqués `is_public = true` → accessibles sans auth

@@ -14,6 +14,17 @@
 
 ---
 
+## Phase 2 — Compléments fonctionnels (2026-03-04)
+- [x] Champs identité association : `slogan`, `logo`, `phone`, `address`, `bp`, `tax_number`, `auth_number`
+- [x] Tontines : champ `slogan` ajouté
+- [x] Custom fields : `association_settings` enrichi (`label` + `is_custom`) + règle de normalisation snake_case
+- [x] Business model SaaS : plans `free/starter/pro/federation` + tables `plans` + `subscriptions`
+- [x] `QuotaFilter` middleware documenté (limites plan + features)
+- [x] Module Reports : 8 types d'états imprimables PDF + CSV, `PdfGenerator`, `CsvExporter`
+- [x] Entête PDF : champs identité + custom fields de l'association
+- [x] Paiement : MTN MoMo + Orange Money + job `CheckSubscriptions`
+- [x] Intégration dans : DATABASE.md, BUSINESS_RULES.md, MODULES.md, API.md, ARCHITECTURE.md, ROADMAP.md, TODO.md
+
 ## Phase 2 — Audits & corrections documentation (2026-03-03 → 2026-03-04)
 
 ### Modèle de données (DATABASE.md)

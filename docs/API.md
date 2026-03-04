@@ -225,6 +225,35 @@ Auth : `Authorization: Bearer <access_token>` (sauf routes publiques)
 
 ---
 
+## Reports (états imprimables)
+
+| Méthode | Endpoint | Rôle min | Description |
+|---------|----------|----------|-------------|
+| GET | `/associations/{id}/reports/members` | treasurer | Liste membres (PDF + CSV) |
+| GET | `/associations/{id}/reports/member/{userId}` | treasurer | Fiche membre (PDF) |
+| GET | `/associations/{id}/reports/tontine/{tId}` | treasurer | État tontine — avoirs, rotation, dettes (PDF) |
+| GET | `/associations/{id}/reports/loans` | treasurer | État emprunts actifs + retards (PDF + CSV) |
+| GET | `/associations/{id}/reports/solidarity` | treasurer | Relevé caisse solidarité (PDF) |
+| GET | `/associations/{id}/reports/bureau` | member | Bureau actuel — postes et mandats (PDF) |
+| GET | `/associations/{id}/reports/fundraising/{fId}` | member | Détail main levée (PDF) |
+| GET | `/associations/{id}/reports/session/{sId}` | member | PV de séance tontine (PDF) |
+
+Query param : `?format=pdf` (défaut) ou `?format=csv` (disponible selon le plan)
+
+---
+
+## Abonnements & Plans
+
+| Méthode | Endpoint | Auth | Description |
+|---------|----------|------|-------------|
+| GET | `/plans` | ❌ | Liste des plans disponibles |
+| GET | `/associations/{id}/subscription` | president | Abonnement actif |
+| POST | `/associations/{id}/subscription` | president | Souscrire / changer de plan |
+| DELETE | `/associations/{id}/subscription` | president | Annuler l'abonnement |
+| GET | `/admin/subscriptions` | super_admin | Vue globale abonnements |
+
+---
+
 ## Notifications
 
 | Méthode | Endpoint | Auth | Description |

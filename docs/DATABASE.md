@@ -6,10 +6,13 @@
 users
 associations                 -- type: tontine_group | association | federation
 association_members
-association_settings
+association_settings         -- clés système + clés personnalisées (is_custom)
 invitations
 password_resets
 refresh_tokens
+
+plans                        -- plans SaaS (free, starter, pro, federation)
+subscriptions                -- abonnement actif par association
 
 bureau_positions
 bureau_terms
@@ -74,7 +77,13 @@ uuid            CHAR(36) UNIQUE NOT NULL
 name            VARCHAR(191) NOT NULL
 slug            VARCHAR(191) UNIQUE NOT NULL
 description     TEXT NULL
-logo            VARCHAR(255) NULL
+slogan          VARCHAR(255) NULL      -- slogan ou message de bienvenue
+logo            VARCHAR(255) NULL      -- chemin vers l'image uploadée
+phone           VARCHAR(20) NULL       -- contact téléphonique officiel
+address         TEXT NULL              -- adresse du siège social
+bp              VARCHAR(100) NULL      -- boîte postale
+tax_number      VARCHAR(100) NULL      -- numéro de contribuable (association/federation)
+auth_number     VARCHAR(100) NULL      -- numéro d'autorisation officielle (association/federation)
 country         VARCHAR(100) DEFAULT 'CM'
 currency        VARCHAR(10) DEFAULT 'XAF'
 type            ENUM('tontine_group','association','federation') DEFAULT 'association'
@@ -96,11 +105,23 @@ deleted_at      DATETIME NULL
 ```sql
 id              BIGINT UNSIGNED PK AUTO_INCREMENT
 association_id  BIGINT UNSIGNED FK → associations.id
-key             VARCHAR(100) NOT NULL
+key             VARCHAR(100) NOT NULL   -- normalisé snake_case (ex: num_de_compte)
+label           VARCHAR(255) NULL       -- libellé original saisi par l'utilisateur (ex: "Num de Compte")
 value           TEXT NULL
+is_custom       TINYINT(1) DEFAULT 0    -- 0 = clé système protégée | 1 = clé créée par l'utilisateur
 UNIQUE(association_id, key)
 ```
-**Clés de settings prédéfinies :**
+**Normalisation des clés personnalisées (`is_custom = 1`) :**
+Appliquée automatiquement par `AssociationService` avant INSERT/UPDATE :
+1. Trim (supprimer espaces en début/fin)
+2. Lowercase (tout en minuscules)
+3. Translitération accents : é→e, è→e, ç→c, etc.
+4. Remplacer espaces et caractères spéciaux par `_`
+5. Supprimer les `_` en double
+
+Exemple : `"Num de Compte"` → key=`num_de_compte`, label=`"Num de Compte"`
+
+**Clés système prédéfinies (`is_custom = 0`) :**
 - `timezone` — Timezone de l'association (défaut : `Africa/Douala`) — peut être surchargé par `tontines.timezone`
 - `tontine_default_amount` — Montant par défaut cotisation
 - `late_penalty_type` — Type de pénalité : `fixed` | `fixed_per_day` | `fixed_per_week` | `fixed_per_month` | `percentage` | `percentage_per_day` | `percentage_per_week` | `percentage_per_month` (défaut : `percentage_per_month`)
@@ -274,6 +295,7 @@ id                          BIGINT UNSIGNED PK AUTO_INCREMENT
 association_id              BIGINT UNSIGNED FK → associations.id
 name                        VARCHAR(191) NOT NULL
 description                 TEXT NULL
+slogan                      VARCHAR(255) NULL                -- slogan ou message affiché sur les états imprimables
 frequency                   ENUM('daily','weekly','monthly') NOT NULL
 amount                      DECIMAL(15,2) NOT NULL           -- montant de base (1 part)
 rotation_mode               ENUM('random','manual','bidding','session_auction') NOT NULL DEFAULT 'random'
@@ -581,6 +603,50 @@ old_values      JSON NULL
 new_values      JSON NULL
 ip_address      VARCHAR(45) NULL
 created_at      DATETIME
+```
+
+---
+
+---
+
+## Business model — Plans & Abonnements
+
+### `plans`
+```sql
+id                  BIGINT UNSIGNED PK AUTO_INCREMENT
+name                VARCHAR(50) UNIQUE NOT NULL     -- identifiant technique : 'free','starter','pro','federation'
+label               VARCHAR(100) NOT NULL            -- libellé affiché : 'Gratuit','Starter','Pro','Fédération'
+price_monthly       DECIMAL(10,2) DEFAULT 0          -- prix mensuel en XAF (0 = gratuit)
+max_entities        INT UNSIGNED NULL                -- nb max d'entités gérées (NULL = illimité)
+max_members         INT UNSIGNED NULL                -- nb max de membres par entité (NULL = illimité)
+max_tontines        INT UNSIGNED NULL                -- nb max de tontines actives (NULL = illimité)
+features            JSON NOT NULL                    -- liste des features activées (ex: ["bureau","loans","reports"])
+is_active           TINYINT(1) DEFAULT 1
+created_at          DATETIME
+updated_at          DATETIME
+```
+
+**Plans initiaux :**
+| name | label | Prix/mois | Entités | Membres | Tontines | Features |
+|------|-------|-----------|---------|---------|----------|----------|
+| `free` | Gratuit | 0 | 1 | 15 | 1 | tontines basiques |
+| `starter` | Starter | ~2 000 XAF | 1 | 50 | 3 | + emprunts, solidarité, documents |
+| `pro` | Pro | ~5 000 XAF | 3 | illimité | illimité | + bureau, élections, exports PDF |
+| `federation` | Fédération | ~15 000 XAF | illimité | illimité | illimité | + fédération, sous-associations |
+
+### `subscriptions`
+```sql
+id                      BIGINT UNSIGNED PK AUTO_INCREMENT
+association_id          BIGINT UNSIGNED FK → associations.id UNIQUE
+plan_id                 BIGINT UNSIGNED FK → plans.id
+status                  ENUM('trial','active','expired','cancelled') DEFAULT 'trial'
+trial_ends_at           DATETIME NULL
+current_period_start    DATETIME NOT NULL
+current_period_end      DATETIME NOT NULL
+payment_method          VARCHAR(50) NULL        -- 'mtn_momo', 'orange_money', 'manual'
+cancelled_at            DATETIME NULL
+created_at              DATETIME
+updated_at              DATETIME
 ```
 
 ---

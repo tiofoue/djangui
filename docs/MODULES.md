@@ -66,6 +66,20 @@ Flux alternatif (avec SMS) : phone → OTP envoyé → vérifier OTP → tokens
 - `AssociationService` — Logique création, validation slug unique, gestion settings
 - `AssociationEntity` — Accesseurs (getSettings, isActive...)
 
+### Champs d'identité (table `associations`)
+Communs aux 3 types, tous éditables après création :
+- `slogan` — message affiché sur états imprimables et PDF
+- `logo` — uploadé dans `public/uploads/associations/{id}/`
+- `phone`, `address`, `bp` — coordonnées
+- `tax_number`, `auth_number` — champs administratifs (pertinents pour association/federation)
+
+### Champs personnalisés (`association_settings`, `is_custom = 1`)
+- L'admin peut ajouter des champs libres (ex: "Num de Compte", "Email RH")
+- **Normalisation automatique** par `AssociationService` : `"Num de Compte"` → key=`num_de_compte`, label=`"Num de Compte"`
+- Algorithme : trim → lowercase → translitération accents → espaces/spéciaux → `_` → dédoublonnage `_`
+- Les clés système (`is_custom = 0`) sont protégées (non modifiables/supprimables par l'utilisateur)
+- Affichés sur les états imprimables via le `label` original
+
 ### Notes
 - **tontine_group** : auto-approuvé à la création, pas de bureau formel, pas de statuts requis
   - `president` a implicitement les permissions `treasurer` pour les opérations tontine
@@ -75,10 +89,8 @@ Flux alternatif (avec SMS) : phone → OTP envoyé → vérifier OTP → tokens
 - **association** : `pending_review` → validation super admin → `active`, créateur devient `president`
 - **federation** : idem association + gestion des sous-associations via `parent_id`
 - Le formulaire de création varie selon le type (statuts requis uniquement pour association/federation)
-- Les settings sont stockés en paires clé/valeur (table `association_settings`)
-- Le logo est uploadé dans `public/uploads/associations/{id}/`
 - Les endpoints `/admin/associations/*` sont réservés au `super_admin`
-- Les features disponibles (bureau, emprunts, solidarité...) sont conditionnées au `type`
+- Les features disponibles (bureau, emprunts, solidarité...) sont conditionnées au `type` et au plan SaaS actif
 
 ---
 
@@ -371,3 +383,75 @@ treasurer → POST /repayments      (status: active → completed si soldé)
 - `PushService` — Firebase FCM (Sprint 7)
 
 > `SmsLibrary` (Auth) gère les OTP. `SmsService` (Notifications) gère les alertes métier — deux usages distincts, bibliothèque partagée.
+
+---
+
+## Module Reports (exports imprimables)
+
+**Responsabilité** : Génération d'états imprimables PDF et exports CSV.
+
+### Composants
+- `ReportController` — Endpoints GET par type de rapport
+- `ReportService` — Collecte des données, formatage
+- `PdfGenerator` — Rendu HTML → PDF via `dompdf` (logo + en-tête association)
+- `CsvExporter` — Export CSV des listes
+
+### États disponibles
+| Rapport | Contenu | Format | Rôle min |
+|---------|---------|--------|----------|
+| `members` | Liste membres (nom, téléphone, rôle, adhésion) | PDF + CSV | treasurer |
+| `member/{userId}` | Fiche membre (cotisations, emprunts, solidarité) | PDF | treasurer |
+| `tontine/{tId}` | État tontine (sessions, avoirs, dettes, rotation) | PDF | treasurer |
+| `loans` | État des emprunts actifs et en retard | PDF + CSV | treasurer |
+| `solidarity` | Relevé caisse solidarité | PDF | treasurer |
+| `bureau` | Bureau actuel (postes, titulaires, mandats) | PDF | member |
+| `fundraising/{fId}` | Détail main levée (contributions, remise) | PDF | member |
+| `session/{sId}` | PV de séance tontine (présents, paiements, bénéficiaire) | PDF | member |
+
+### Entête des documents PDF
+Composée des champs d'identité de l'association : logo, name, slogan, address, bp, phone, tax_number, auth_number + champs personnalisés (`is_custom = 1`).
+
+### Endpoints
+```
+GET /associations/{id}/reports/{type}?format=pdf|csv
+```
+
+> **Plan requis** : exports PDF disponibles à partir du plan `pro`. CSV disponible dès `starter`.
+
+---
+
+## Business model — Plans & Quotas
+
+**Responsabilité** : Gestion des plans SaaS et enforcement des limites.
+
+### Composants
+- `QuotaFilter` — Middleware vérifiant les limites du plan avant chaque action critique
+- `PlanService` — Récupération plan actif, vérification features, calcul quotas
+- `SubscriptionController` — Gestion abonnement par association
+- `PlanModel` + `SubscriptionModel`
+
+### Plans (voir DATABASE.md § Plans initiaux)
+| Plan | Prix/mois | Limites | Features supplémentaires |
+|------|-----------|---------|--------------------------|
+| `free` | 0 | 1 entité, 15 membres, 1 tontine | Tontines basiques |
+| `starter` | ~2 000 XAF | 1 entité, 50 membres, 3 tontines | + Emprunts, solidarité, documents |
+| `pro` | ~5 000 XAF | 3 entités, illimité, illimité | + Bureau, élections, exports PDF |
+| `federation` | ~15 000 XAF | illimité | + Fédération, sous-associations |
+
+### QuotaFilter — Actions vérifiées
+| Action | Quota vérifié |
+|--------|---------------|
+| Créer une entité | `max_entities` |
+| Inviter un membre | `max_members` |
+| Créer une tontine | `max_tontines` |
+| Accéder au module Bureau | feature `bureau` dans plan |
+| Accéder aux emprunts | feature `loans` dans plan |
+| Générer un PDF | feature `reports` dans plan |
+
+- Réponse si quota dépassé : **HTTP 402 Payment Required** `{ "message": "Limite du plan atteinte. Passez au plan supérieur." }`
+- Réponse si feature non incluse : **HTTP 403 Forbidden** `{ "message": "Cette fonctionnalité nécessite un plan supérieur." }`
+
+### Paiement (Sprint 5)
+- Méthodes : MTN Mobile Money, Orange Money, virement manuel
+- Webhooks de confirmation → `SubscriptionService::activate()`
+- Job planifié `CheckSubscriptions` : expiration → downgrade vers plan `free`

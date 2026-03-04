@@ -45,16 +45,20 @@
 
 ### Module Associations
 **Migrations :**
-- [ ] `associations`
-- [ ] `association_settings`
+- [ ] `associations` (+ champs identité : slogan, phone, address, bp, tax_number, auth_number)
+- [ ] `association_settings` (+ colonnes label, is_custom)
+- [ ] `plans` + `subscriptions`
 
 **Code :**
 - [ ] `AssociationModel` + `AssociationEntity`
-- [ ] `AssociationSettingModel`
-- [ ] `AssociationService` : CRUD + settings (créateur tontine_group → effective_role = president)
+- [ ] `AssociationSettingModel` (CRUD custom fields + protection clés système)
+- [ ] `AssociationService` : CRUD + normalisation clés custom (trim→lower→accents→snake_case)
 - [ ] `AssociationController` : CRUD complet + admin endpoints (super_admin)
-- [ ] `SettingsController` : GET/PUT /associations/{id}/settings
-- [ ] Tests Associations
+- [ ] `SettingsController` : GET/PUT /associations/{id}/settings (clés système + custom)
+- [ ] `PlanModel` + `SubscriptionModel` + `PlanService`
+- [ ] `SubscriptionController` : GET/POST/DELETE /associations/{id}/subscription
+- [ ] `QuotaFilter` middleware (max_members, max_tontines, max_entities, features)
+- [ ] Tests Associations + Plans
 
 ### Module Members
 **Migrations :**
@@ -133,6 +137,25 @@
 
 ### Jobs planifiés
 - [ ] `CheckLoanDefaults` : active → defaulted après loan_default_delay_days (configurable)
+
+---
+
+## Sprint 5 — Reports & Business Model
+
+### Module Reports
+- [ ] Installer `dompdf` via Composer
+- [ ] `PdfGenerator` : rendu HTML→PDF avec entête (logo + champs identité + custom fields)
+- [ ] `CsvExporter` : export générique
+- [ ] `ReportService` : 8 types (members, member, tontine, loans, solidarity, bureau, fundraising, session)
+- [ ] `ReportController` : GET /associations/{id}/reports/{type}?format=pdf|csv
+- [ ] Templates HTML par type de rapport (Twig ou CI4 views)
+- [ ] Tests Reports
+
+### Business model — Paiement
+- [ ] Intégration MTN Mobile Money API
+- [ ] Intégration Orange Money API
+- [ ] `SubscriptionService::activate()` via webhook de confirmation paiement
+- [ ] Job `CheckSubscriptions` : abonnements expirés → downgrade plan free
 
 ---
 

@@ -42,9 +42,10 @@ Sprint 1 (Auth + Membres)
 
 - [ ] Setup CI4 4.7+ avec Laragon + structure HMVC + BaseController/Model/Service
 - [ ] Module Auth : register, verify-phone (OTP SMS), login, refresh, logout, reset-password, switch-association, GET/PUT me
-- [ ] Module Associations : CRUD, settings, logo upload, workflow validation super_admin
+- [ ] Module Associations : CRUD, champs identité (slogan, logo, phone, address, bp, tax_number, auth_number), custom fields normalisés, settings, workflow validation super_admin
 - [ ] Module Members : invitation (SMS + email), rôles, retrait, dashboard cross-associations
-- [ ] Middleware AuthFilter + RoleFilter + TontineModeratorFilter
+- [ ] Middleware AuthFilter + RoleFilter + TontineModeratorFilter + **QuotaFilter**
+- [ ] Module Plans : tables `plans` + `subscriptions`, `PlanService`, `QuotaFilter`
 - [ ] Migrations + DemoSeeder (1 tontine_group + 1 association + admin + 5 membres)
 - [ ] Tests PHPUnit (Auth + Associations + Members)
 
@@ -94,14 +95,17 @@ Sprint 1 (Auth + Membres)
 
 ---
 
-## Sprint 5 — Notifications & Polish API
+## Sprint 5 — Notifications, Reports & Polish API
 
-**Objectif** : Notifications SMS/Email/Push, finalisation API.
+**Objectif** : Notifications, états imprimables, paiements, finalisation API.
 
 - [ ] Notifications SMS (Africa's Talking) + Email (SMTP) + Push (Firebase FCM)
+- [ ] Module Reports : 8 types de rapports PDF + CSV (membres, tontine, emprunts, bureau, PV séance...)
+- [ ] `PdfGenerator` (dompdf) + `CsvExporter` — entête avec champs identité + custom fields association
+- [ ] Intégration paiement : MTN MoMo + Orange Money → activation abonnement
+- [ ] Job `CheckSubscriptions` : expiration → downgrade plan free
 - [ ] Rate limiting global + CORS whitelist
 - [ ] Audit log complet
-- [ ] Export PDF/CSV : états de compte, historique tontine
 - [ ] Tests d'intégration complets
 - [ ] Documentation API (OpenAPI/Swagger)
 

@@ -36,7 +36,8 @@ djangui/
 │   ├── Filters/
 │   │   ├── AuthFilter.php               # Vérification JWT
 │   │   ├── RoleFilter.php               # Vérification effective_role (president = treasurer implicite pour tontine_group)
-│   │   └── TontineModeratorFilter.php   # Vérification modérateur tontine (tontine-scoped)
+│   │   ├── TontineModeratorFilter.php   # Vérification modérateur tontine (tontine-scoped)
+│   │   └── QuotaFilter.php              # Vérification limites plan SaaS (max_members, features, etc.)
 │   ├── Modules/
 │   │   ├── Auth/
 │   │   │   ├── Controllers/AuthController.php
@@ -113,11 +114,21 @@ djangui/
 │   │   │   ├── Models/DocumentModel.php
 │   │   │   ├── Services/DocumentService.php
 │   │   │   └── Config/Routes.php
-│   │   └── Notifications/
-│   │       ├── Services/NotificationService.php
-│   │       ├── Services/EmailService.php
-│   │       ├── Services/SmsService.php               # Notifications SMS (s'appuie sur SmsLibrary)
-│   │       └── Services/PushService.php
+│   │   ├── Notifications/
+│   │   │   ├── Services/NotificationService.php
+│   │   │   ├── Services/EmailService.php
+│   │   │   ├── Services/SmsService.php               # Notifications SMS (s'appuie sur SmsLibrary)
+│   │   │   └── Services/PushService.php
+│   │   ├── Reports/
+│   │   │   ├── Controllers/ReportController.php      # GET /associations/{id}/reports/{type}
+│   │   │   ├── Services/ReportService.php            # Collecte données + formatage
+│   │   │   └── Config/Routes.php
+│   │   └── Plans/
+│   │       ├── Controllers/SubscriptionController.php
+│   │       ├── Models/PlanModel.php
+│   │       ├── Models/SubscriptionModel.php
+│   │       ├── Services/PlanService.php              # Vérification features + quotas
+│   │       └── Config/Routes.php
 │   ├── Common/
 │   │   ├── BaseController.php   # Réponses JSON standardisées
 │   │   ├── BaseModel.php        # Scoping multi-tenant
@@ -129,11 +140,14 @@ djangui/
 │   │       └── AssociationSeeder.php
 │   ├── Libraries/
 │   │   ├── JwtLibrary.php
-│   │   ├── SmsLibrary.php    # Africa's Talking — envoi OTP et invitations SMS
-│   │   └── FileUpload.php
+│   │   ├── SmsLibrary.php       # Africa's Talking — envoi OTP et invitations SMS
+│   │   ├── FileUpload.php
+│   │   ├── PdfGenerator.php     # Rendu HTML → PDF via dompdf (entête association + logo)
+│   │   └── CsvExporter.php      # Export CSV générique
 │   └── Commands/
-│       ├── OpenDueSessions.php     # Job planifié : pending → open/auction au matin de session_date
-│       └── CheckLoanDefaults.php   # Job planifié : active → defaulted si retard > loan_default_delay_days
+│       ├── OpenDueSessions.php       # Job planifié : pending → open/auction au matin de session_date
+│       ├── CheckLoanDefaults.php     # Job planifié : active → defaulted si retard > loan_default_delay_days
+│       └── CheckSubscriptions.php   # Job planifié : expiration abonnement → downgrade vers plan free
 ├── public/
 │   └── uploads/
 │       ├── associations/        # Logos (public)
