@@ -1,5 +1,30 @@
 # DONE — Décisions et documentation terminées
 
+## Sprint 1 — Setup & Fondations (2026-03-05)
+
+### Environnement & CI4
+- [x] Laragon installé : PHP 8.3, Apache, MySQL 8 — virtual host `djangui.test` auto-créé
+- [x] CI4 4.7.0 installé via Composer (`codeigniter4/appstarter`)
+- [x] `firebase/php-jwt` v7 installé
+- [x] `.env` configuré (baseURL, DB, JWT_SECRET, JWT_ACCESS_TTL=900, JWT_REFRESH_TTL=604800, Redis, Africa's Talking)
+- [x] `phpunit.xml` configuré depuis `phpunit.xml.dist`
+- [x] Git initialisé + remote GitHub + push initial (commit `d80f6e3`)
+
+### Structure HMVC
+- [x] 11 modules créés : `Auth`, `Associations`, `Bureau`, `Members`, `Tontines`, `Loans`, `Solidarity`, `Documents`, `Notifications`, `Reports`, `Plans`
+- [x] `app/Common/BaseController` — 12 méthodes `respond*` JSON standardisées (HTTP 200/201/204/400/401/402/403/404/409/422/429)
+- [x] `app/Common/BaseModel` — scoping multi-tenant `association_id` ; RuntimeException si scope oublié ; `$scopedByAssociation = false` pour tables globales
+- [x] `app/Common/BaseService` — classe abstraite, injection tenant, `gmdate()` UTC, `paginationMeta()`
+- [x] `app/Config/Autoload` — namespaces PSR-4 pour tous les modules + Common + Filters + Libraries
+- [x] `app/Config/Routes` — chargement automatique routes de chaque module, `setAutoRoute(false)`
+- [x] Revue `code-reviewer` : 3 corrections appliquées (UTC gmdate, multi-tenant sécurisé, opt-out scopedByAssociation)
+
+### Outillage Claude
+- [x] `kit-djangui/` installé : 8 agents (php-pro, code-reviewer, security-auditor, api-architect, database-architect, database-optimization, git-flow-manager, deploy-manager) + 3 commandes (/new-feature, /review, /deploy)
+- [x] `CLAUDE.md` mis à jour — workflow 5 étapes, orchestration agents par type de tâche
+
+---
+
 ## Phase 1 — Planification & Architecture (2026-03-03)
 
 - [x] Stack défini : CI4 4.7+, MySQL 8, Redis, JWT (firebase/php-jwt), Vue 3, Flutter

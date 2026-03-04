@@ -2,29 +2,35 @@
 
 ## Sprint 1 — Fondations & Auth ← EN COURS
 
-### Setup environnement
-- [ ] Installer Laragon sur Windows
-- [ ] Créer virtual host `djangui.test`
-- [ ] Installer CI4 via Composer : `composer create-project codeigniter4/appstarter djangui`
-- [ ] Configurer `.env` (DB, baseURL, JWT secret, Africa's Talking API key)
-- [ ] Installer dépendances : `firebase/php-jwt`, `phpunit/phpunit`
-- [ ] Configurer `phpunit.xml`
-- [ ] Push initial sur GitHub
+### ✅ Setup environnement — TERMINÉ (2026-03-05)
+- [x] Installer Laragon sur Windows (PHP 8.3, Apache, MySQL 8)
+- [x] Créer virtual host `djangui.test` (auto-créé par Laragon)
+- [x] Installer CI4 4.7.0 via Composer
+- [x] Configurer `.env` (DB, baseURL, JWT secret, Africa's Talking API key)
+- [x] Installer dépendances : `firebase/php-jwt` v7
+- [x] Configurer `phpunit.xml`
+- [x] Push initial sur GitHub
 
-### Structure HMVC
-- [ ] Créer `app/Common/BaseController.php` (réponses JSON standardisées)
-- [ ] Créer `app/Common/BaseModel.php` (scoping association_id)
-- [ ] Créer `app/Common/BaseService.php`
-- [ ] Configurer autoload des modules dans `app/Config/Autoload.php`
-- [ ] Configurer routes globales dans `app/Config/Routes.php`
+### ✅ Structure HMVC — TERMINÉE (2026-03-05)
+- [x] Créer `app/Common/BaseController.php` (12 méthodes respond* JSON standardisées)
+- [x] Créer `app/Common/BaseModel.php` (scoping association_id + RuntimeException si oublié)
+- [x] Créer `app/Common/BaseService.php` (abstract, injection tenant, gmdate UTC)
+- [x] Configurer autoload des modules dans `app/Config/Autoload.php`
+- [x] Configurer routes globales dans `app/Config/Routes.php`
+
+### 🔴 PROCHAINE TÂCHE — Migrations Phase 1 (database-architect → php-pro)
+**Ordre obligatoire (dépendances FK) :**
+- [ ] Migration `plans` (plans SaaS : free/starter/pro/federation)
+- [ ] Migration `associations` (+ champs identité : slogan, phone, address, bp, tax_number, auth_number)
+- [ ] Migration `association_settings` (+ colonnes label, is_custom)
+- [ ] Migration `subscriptions` (FK → plans + associations)
+- [ ] Migration `users` (phone NOT NULL UNIQUE, email NULL, is_super_admin, phone_verified_at, email_verified_at)
+- [ ] Migration `password_resets`
+- [ ] Migration `refresh_tokens` (token_hash, jti, expires_at, revoked_at)
+- [ ] Migration `association_members` (effective_role inclut `censor`, left_at)
+- [ ] Migration `invitations` (phone NULL, email NULL — contrainte phone OR email au niveau Service)
 
 ### Module Auth
-**Migrations :**
-- [ ] `users` (phone NOT NULL UNIQUE, email NULL, is_super_admin, phone_verified_at, email_verified_at)
-- [ ] `password_resets`
-- [ ] `refresh_tokens` (token_hash, jti, expires_at, revoked_at)
-- [ ] Blacklist access tokens → Redis uniquement (pas de table)
-
 **Code :**
 - [ ] `UserModel` + `UserEntity`
 - [ ] `SmsLibrary` : intégration Africa's Talking (envoi OTP)
@@ -44,11 +50,6 @@
 - [ ] Tests Auth
 
 ### Module Associations
-**Migrations :**
-- [ ] `associations` (+ champs identité : slogan, phone, address, bp, tax_number, auth_number)
-- [ ] `association_settings` (+ colonnes label, is_custom)
-- [ ] `plans` + `subscriptions`
-
 **Code :**
 - [ ] `AssociationModel` + `AssociationEntity`
 - [ ] `AssociationSettingModel` (CRUD custom fields + protection clés système)
@@ -61,10 +62,6 @@
 - [ ] Tests Associations + Plans
 
 ### Module Members
-**Migrations :**
-- [ ] `association_members` (effective_role inclut `censor`, left_at)
-- [ ] `invitations` (phone NULL, email NULL — contrainte phone OR email au niveau Service)
-
 **Code :**
 - [ ] `AssociationMemberModel` + `InvitationModel`
 - [ ] `MemberService` : invite (SMS si phone + email si dispo), accepter, changer rôle, retirer
@@ -140,25 +137,6 @@
 
 ---
 
-## Sprint 5 — Reports & Business Model
-
-### Module Reports
-- [ ] Installer `dompdf` via Composer
-- [ ] `PdfGenerator` : rendu HTML→PDF avec entête (logo + champs identité + custom fields)
-- [ ] `CsvExporter` : export générique
-- [ ] `ReportService` : 8 types (members, member, tontine, loans, solidarity, bureau, fundraising, session)
-- [ ] `ReportController` : GET /associations/{id}/reports/{type}?format=pdf|csv
-- [ ] Templates HTML par type de rapport (Twig ou CI4 views)
-- [ ] Tests Reports
-
-### Business model — Paiement
-- [ ] Intégration MTN Mobile Money API
-- [ ] Intégration Orange Money API
-- [ ] `SubscriptionService::activate()` via webhook de confirmation paiement
-- [ ] Job `CheckSubscriptions` : abonnements expirés → downgrade plan free
-
----
-
 ## Sprint 4 — Solidarité & Documents
 
 ### Module Solidarity & Fundraising
@@ -179,3 +157,22 @@
 - [ ] `DocumentService` : enforcer is_current = 1 unique par type par association
 - [ ] GET /documents/{dId} (métadonnées JSON) + GET /documents/{dId}/download (stream binaire)
 - [ ] Tests Documents
+
+---
+
+## Sprint 5 — Reports & Business Model
+
+### Module Reports
+- [ ] Installer `dompdf` via Composer
+- [ ] `PdfGenerator` : rendu HTML→PDF avec entête (logo + champs identité + custom fields)
+- [ ] `CsvExporter` : export générique
+- [ ] `ReportService` : 8 types (members, member, tontine, loans, solidarity, bureau, fundraising, session)
+- [ ] `ReportController` : GET /associations/{id}/reports/{type}?format=pdf|csv
+- [ ] Templates HTML par type de rapport (Twig ou CI4 views)
+- [ ] Tests Reports
+
+### Business model — Paiement
+- [ ] Intégration MTN Mobile Money API
+- [ ] Intégration Orange Money API
+- [ ] `SubscriptionService::activate()` via webhook de confirmation paiement
+- [ ] Job `CheckSubscriptions` : abonnements expirés → downgrade plan free
