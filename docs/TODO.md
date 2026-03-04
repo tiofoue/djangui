@@ -1,0 +1,158 @@
+# TODO — Djangui
+
+## Sprint 1 — Fondations & Auth ← EN COURS
+
+### Setup environnement
+- [ ] Installer Laragon sur Windows
+- [ ] Créer virtual host `djangui.test`
+- [ ] Installer CI4 via Composer : `composer create-project codeigniter4/appstarter djangui`
+- [ ] Configurer `.env` (DB, baseURL, JWT secret, Africa's Talking API key)
+- [ ] Installer dépendances : `firebase/php-jwt`, `phpunit/phpunit`
+- [ ] Configurer `phpunit.xml`
+- [ ] Push initial sur GitHub
+
+### Structure HMVC
+- [ ] Créer `app/Common/BaseController.php` (réponses JSON standardisées)
+- [ ] Créer `app/Common/BaseModel.php` (scoping association_id)
+- [ ] Créer `app/Common/BaseService.php`
+- [ ] Configurer autoload des modules dans `app/Config/Autoload.php`
+- [ ] Configurer routes globales dans `app/Config/Routes.php`
+
+### Module Auth
+**Migrations :**
+- [ ] `users` (phone NOT NULL UNIQUE, email NULL, is_super_admin, phone_verified_at, email_verified_at)
+- [ ] `password_resets`
+- [ ] `refresh_tokens` (token_hash, jti, expires_at, revoked_at)
+- [ ] Blacklist access tokens → Redis uniquement (pas de table)
+
+**Code :**
+- [ ] `UserModel` + `UserEntity`
+- [ ] `SmsLibrary` : intégration Africa's Talking (envoi OTP)
+- [ ] `JwtLibrary` : generate, verify, blacklist Redis (access) + DB (refresh)
+- [ ] `AuthService` : register, login, login-otp, refresh, logout, reset, switch-association
+- [ ] `AuthController` : POST /auth/register (phone obligatoire, email optionnel)
+- [ ] `AuthController` : POST /auth/verify-phone (OTP SMS)
+- [ ] `AuthController` : POST /auth/resend-otp
+- [ ] `AuthController` : POST /auth/login (phone ou email + password)
+- [ ] `AuthController` : POST /auth/login/otp + /auth/login/otp/verify
+- [ ] `AuthController` : POST /auth/refresh
+- [ ] `AuthController` : POST /auth/logout
+- [ ] `AuthController` : POST /auth/forgot-password + /auth/reset-password
+- [ ] `AuthController` : GET/PUT /auth/me
+- [ ] `AuthController` : POST /auth/switch-association
+- [ ] `AuthFilter` middleware
+- [ ] Tests Auth
+
+### Module Associations
+**Migrations :**
+- [ ] `associations`
+- [ ] `association_settings`
+
+**Code :**
+- [ ] `AssociationModel` + `AssociationEntity`
+- [ ] `AssociationSettingModel`
+- [ ] `AssociationService` : CRUD + settings (créateur tontine_group → effective_role = president)
+- [ ] `AssociationController` : CRUD complet + admin endpoints (super_admin)
+- [ ] `SettingsController` : GET/PUT /associations/{id}/settings
+- [ ] Tests Associations
+
+### Module Members
+**Migrations :**
+- [ ] `association_members` (effective_role inclut `censor`, left_at)
+- [ ] `invitations` (phone NULL, email NULL — contrainte phone OR email au niveau Service)
+
+**Code :**
+- [ ] `AssociationMemberModel` + `InvitationModel`
+- [ ] `MemberService` : invite (SMS si phone + email si dispo), accepter, changer rôle, retirer
+- [ ] `MemberService` : valider rôles selon type entité (tontine_group → treasurer|member uniquement)
+- [ ] `MemberController` : liste, profil, retrait, changement rôle
+- [ ] `InvitationController` : créer invitation + accepter via token
+- [ ] `MeController` : GET /me/overview (dashboard cross-associations)
+- [ ] `RoleFilter` middleware (president = treasurer implicite pour tontine_group)
+- [ ] `TontineModeratorFilter` middleware (moderateur_id OU treasurer OU president)
+- [ ] Tests Members
+
+### Seeds
+- [ ] `DemoSeeder` : 1 tontine_group + 1 association + 1 admin (avec phone) + 5 membres
+
+---
+
+## Sprint 2 — Tontines & Bureau
+
+### Module Tontines
+**Migrations :**
+- [ ] `tontines` (session_deadline_time, timezone)
+- [ ] `tontine_members` (left_at)
+- [ ] `tontine_sessions` (cycle_number NOT NULL DEFAULT 1, opened_at, UNIQUE(tontine_id, cycle_number, session_number))
+- [ ] `contributions` (UNIQUE(session_id, member_id))
+- [ ] `tontine_caisse_distributions` (cycle_number NOT NULL, UNIQUE(tontine_id, cycle_number, member_id))
+- [ ] `tontine_session_bids`, `tontine_session_beneficiaries`, `tontine_slot_demotions`
+
+**Code :**
+- [ ] `TontineService` : démarrage, génération sessions, clôture, reconduction
+- [ ] `RotationService` : random / manual / bidding / session_auction
+- [ ] `PenaltyCalculator` : 8 modes (fixed, fixed_per_day/week/month, percentage, percentage_per_day/week/month)
+- [ ] Résolution timezone effectif : `TontineService::getTimezone()` (tontine → association → plateforme)
+- [ ] Règle bidding : tous les membres doivent avoir bid_amount > 0 avant démarrage
+- [ ] Logique reconduction : incrémenter current_cycle, reset slots_received, nouvelles sessions
+- [ ] `BidController` : PUT /members/me/bid (bidding) + POST/GET /sessions/{sId}/bids (session_auction)
+- [ ] Tests Tontines
+
+### Module Bureau & Elections
+**Migrations :**
+- [ ] `bureau_positions`, `bureau_terms` (unicité mandat actif enforced au Service, pas en DB)
+- [ ] `bureau_substitutions`
+- [ ] `elections`, `election_positions`
+- [ ] `election_candidates` (election_position_id FK → election_positions.id)
+- [ ] `election_votes` (election_position_id FK → election_positions.id)
+
+**Code :**
+- [ ] `BureauService` : calcul permissions effectives, cascade suppléance, mise à jour effective_role
+- [ ] `ElectionService` : workflow draft → open → closed + publication résultats → création bureau_terms
+- [ ] Tous les controllers Bureau (positions, terms, substitutions, elections)
+- [ ] Tests Bureau & Elections
+
+### Jobs planifiés
+- [ ] `OpenDueSessions` : pending → open/auction au matin de session_date (timezone effectif)
+
+---
+
+## Sprint 3 — Emprunts
+
+### Module Loans
+**Migrations :**
+- [ ] `loans`, `loan_repayments`
+- [ ] `loan_guarantees` (guarantor_user_id, tontine_member_id — pas de ref_id)
+
+**Code :**
+- [ ] `LoanService` : workflow pending → approved → active (disburse) → completed
+- [ ] `InterestCalculator` : intérêts simple + composé, génération échéancier à disbursed_at
+- [ ] Endpoint `PUT /loans/{lId}/disburse` (génère échéancier, calcule total_due)
+- [ ] Imputation remboursements : pénalités → intérêts → capital
+- [ ] Tests Loans
+
+### Jobs planifiés
+- [ ] `CheckLoanDefaults` : active → defaulted après loan_default_delay_days (configurable)
+
+---
+
+## Sprint 4 — Solidarité & Documents
+
+### Module Solidarity & Fundraising
+**Migrations :**
+- [ ] `solidarity_funds`, `solidarity_contributions`, `solidarity_requests`
+- [ ] `fundraisings` (status: open/closed/handed_over), `fundraising_contributions`
+
+**Code :**
+- [ ] Endpoint `PUT /solidarity/requests/{rId}/cancel` (member*, pending uniquement)
+- [ ] `FundraisingService` : clôture, remise (handed_over réservé au président)
+- [ ] Tests Solidarity + Fundraising
+
+### Module Documents
+**Migrations :**
+- [ ] `documents` (is_current TINYINT DEFAULT 0)
+
+**Code :**
+- [ ] `DocumentService` : enforcer is_current = 1 unique par type par association
+- [ ] GET /documents/{dId} (métadonnées JSON) + GET /documents/{dId}/download (stream binaire)
+- [ ] Tests Documents
