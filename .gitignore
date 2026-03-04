@@ -42,3 +42,6 @@ node_modules/
 # Tests temporaires
 *.test.php
 temp/
+
+# Kit Claude (agents, commandes, hooks — installés via .claude/)
+kit-djangui/

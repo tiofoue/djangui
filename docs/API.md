@@ -277,5 +277,6 @@ Query param : `?format=pdf` (défaut) ou `?format=csv` (disponible selon le plan
 | 404 | Not Found |
 | 409 | Conflict (ex: email déjà pris) |
 | 422 | Unprocessable Entity |
+| 402 | Payment Required (quota plan dépassé) |
 | 429 | Too Many Requests (rate limit) |
 | 500 | Internal Server Error |

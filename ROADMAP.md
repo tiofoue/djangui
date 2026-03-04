@@ -11,11 +11,11 @@ API-first → Web (Vue 3) + Mobile (Flutter).
 
 | Sprint | Périmètre | Statut |
 |--------|-----------|--------|
-| Sprint 1 | Fondations, Auth, Associations, Members | 🟡 Planifié — prêt à démarrer |
+| Sprint 1 | Fondations, Auth, Associations, Members, Plans | 🟡 Planifié — prêt à démarrer |
 | Sprint 2 | Tontines & Bureau | 🔲 En attente Sprint 1 |
 | Sprint 3 | Emprunts | 🔲 En attente Sprint 1 |
 | Sprint 4 | Solidarité & Documents | 🔲 En attente Sprint 3 |
-| Sprint 5 | Notifications & Polish API | 🔲 En attente Sprint 4 |
+| Sprint 5 | Notifications, Reports & Polish API | 🔲 En attente Sprint 4 |
 | Sprint 6 | Frontend Web (Vue 3) | 🔲 En attente Sprint 5 |
 | Sprint 7 | Mobile (Flutter) | 🔲 En attente Sprint 5 |
 | Sprint 8 | Mise en production | 🔲 En attente Sprint 5 |
