@@ -91,8 +91,8 @@ address         TEXT NULL              -- adresse du siège social
 bp              VARCHAR(100) NULL      -- boîte postale
 tax_number      VARCHAR(100) NULL      -- numéro de contribuable (association/federation)
 auth_number     VARCHAR(100) NULL      -- numéro d'autorisation officielle (association/federation)
-country         VARCHAR(100) DEFAULT 'CM'
-currency        VARCHAR(10) DEFAULT 'XAF'
+country         CHAR(2) DEFAULT 'CM'         -- code ISO 3166-1 alpha-2 (ex: CM, FR, SN)
+currency        CHAR(3) DEFAULT 'XAF'        -- code ISO 4217 (ex: XAF, EUR, USD)
 type            ENUM('tontine_group','association','federation') DEFAULT 'association'
 parent_id       BIGINT UNSIGNED NULL FK → associations.id  -- sous-association d'une fédération
 statutes_text   LONGTEXT NULL          -- statuts rédigés dans le formulaire
