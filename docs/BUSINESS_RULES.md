@@ -26,6 +26,8 @@
 | Tontines | ✅ | ✅ | ✅ |
 | Bureau & élections | ❌ | ✅ | ✅ |
 | Emprunts | ❌ | ✅ | ✅ |
+| Épargnes | ❌ | ✅ | ✅ |
+| Cycle d'activité | ❌ | ✅ | ✅ |
 | Caisse de solidarité | ❌ | ✅ | ✅ |
 | Main levée | ❌ | ✅ | ✅ |
 | Documents | ❌ | ✅ | ✅ |
@@ -70,6 +72,94 @@ suspended      → active    (réhabilitation)
 - La fédération peut avoir une visibilité sur les activités des sous-associations (configurable)
 - Une sous-association ne peut appartenir qu'à une seule fédération à la fois
 - Une sous-association peut exister de façon indépendante (sans fédération)
+
+---
+
+## Cycle d'activité
+
+> **Réservé aux entités de type `association` et `federation`.**
+> Les `tontine_group` n'ont pas accès à ce module.
+
+- Chaque association définit un **exercice** (période d'activité financière, ex. janvier→décembre)
+- Un seul cycle peut être `active` à la fois par association
+- Les emprunts, les épargnes et la distribution des intérêts sont tous rattachés au cycle actif
+- La `end_date` du cycle fixe la **date limite absolue** de remboursement de tous les prêts
+
+### Cycle de vie d'un exercice
+```
+draft → active   (démarré manuellement par le président)
+active → closing (initiation clôture : tous les prêts doivent être soldés)
+closing → closed (clôture effective : distribution intérêts + retrait épargnes)
+```
+
+### Clôture de cycle — procédure
+1. Vérifier qu'aucun prêt n'est en statut `active`, `approved` ou `defaulted` → sinon blocage
+2. Calculer le pro-rata des intérêts par membre (via snapshots)
+3. Créditer `savings_accounts.interest_earned` pour chaque membre
+4. Enregistrer les transactions `interest_payout` puis `withdrawal` (capital + intérêts)
+5. Passer les comptes épargne en `closed`
+6. Passer le cycle en `closed`
+7. Nouveau cycle : le président crée un nouveau cycle `draft` → `active`, les membres déposent leurs nouvelles épargnes
+
+> **Remarque :** Les nouveaux dépôts d'épargne du cycle suivant se font **le même jour** que les retraits du cycle clôturé — il n'y a pas de rupture de continuité pour les membres.
+
+---
+
+## Épargnes
+
+> **Réservé aux entités de type `association` et `federation`.**
+> Activé par `association_settings.savings_enabled = true`.
+
+- Chaque membre actif peut ouvrir un **compte épargne** rattaché au cycle en cours
+- Les dépôts s'effectuent lors des **mêmes séances** que la tontine (si tontine existante) ou lors d'assemblées de l'association
+- L'épargne poolée de tous les membres constitue le **capital de prêt** de l'association
+- Des **apports externes** (dons, subventions, apport fédération) peuvent compléter ce capital (`savings_pool_entries`)
+
+### Capital de prêt disponible
+```
+Capital disponible = Σ(savings_accounts.balance) + Σ(savings_pool_entries actifs) − Σ(loans actifs)
+```
+Le trésorier consulte ce solde avant d'approuver tout nouvel emprunt.
+
+### Snapshot d'avoir par séance
+À chaque séance d'assemblée, un snapshot est enregistré pour chaque compte épargne :
+- `balance` = solde épargne du membre à ce moment précis
+- `loans_active` = `1` si au moins un prêt est actif dans l'association à cette date, `0` sinon
+
+### Formule de distribution des intérêts (pro-rata)
+```
+score_membre = Σ(balance_membre sur toutes séances où loans_active = 1)
+score_total  = Σ(balance_tous_membres sur les mêmes séances)
+
+part_intérêts_membre = (score_membre / score_total) × total_intérêts_collectés_du_cycle
+```
+
+**Protection anti-gaming :**
+Seules les séances avec au moins un prêt actif entrent dans le calcul.
+Un membre déposant une somme importante **après** la clôture de tous les prêts ne perçoit **aucun intérêt** (mais récupère son capital intégralement).
+
+### Exemples illustratifs
+
+**Cas 1 — Prêt court (3 mois sur cycle de 12)**
+| Séance | Avoir A | Avoir B | Prêts actifs | Comptabilisé |
+|--------|---------|---------|--------------|--------------|
+| M1 | 20 000 | 0 | ✅ | ✅ |
+| M2 | 40 000 | 0 | ✅ | ✅ |
+| M3 | 60 000 | 0 | ✅ | ✅ |
+| M4→M12 | 60 000 | 90 000 | ❌ | ❌ |
+
+Score A = 120 000 | Score B = 0 → **A reçoit 100 % des intérêts**
+
+**Cas 2 — Prêt long (12 mois, tout le cycle)**
+| Séance | Avoir A | Avoir B | Prêts actifs | Comptabilisé |
+|--------|---------|---------|--------------|--------------|
+| M1 | 20 000 | 0 | ✅ | ✅ |
+| M2 | 40 000 | 0 | ✅ | ✅ |
+| M3 | 60 000 | 0 | ✅ | ✅ |
+| M4→M12 | 60 000 | 90 000 | ✅ | ✅ |
+
+Score A = 20k+40k+60k×10 = **660 000** | Score B = 90k×9 = **810 000** | Total = 1 470 000
+→ **A : 44,9 %** (récompensé pour épargne précoce) | **B : 55,1 %** (contribution réelle depuis M4)
 
 ---
 
@@ -411,6 +501,40 @@ member soumet POST /loans + guarantees[]
 - Un emprunt est marqué `completed` quand `total_repaid >= total_due`
 - Un emprunt est `defaulted` automatiquement via job planifié (`CheckLoanDefaults`) après `loan_default_delay_days` jours de retard sur une échéance (configurable dans `association_settings`)
 - À la mise en défaut : notification automatique au treasurer et au président, et au membre concerné
+
+### Lien avec le cycle d'activité
+- Chaque prêt est **rattaché au cycle actif** au moment de la demande (`cycle_id` FK)
+- `LoanService` contraint : `due_date ≤ cycle.end_date` (erreur 422 sinon)
+- **Remboursement obligatoire en fin de cycle** : aucun prêt `active` ou `approved` ne peut subsister lors de la clôture du cycle → la clôture est bloquée jusqu'à soldement complet
+
+### Remboursement flexible
+- Le membre peut rembourser **en tranches** (selon l'échéancier mensuel) ou **en totalité** avant terme
+- Tout versement est imputé : pénalités → intérêts → capital
+- Le remboursement anticipé total est autorisé (sans pénalité de remboursement anticipé sauf configuration contraire)
+
+### Reconduction automatique (si non soldé à l'échéance)
+Si un prêt n'est pas entièrement remboursé à sa `due_date` :
+
+```
+[auto job CheckLoanRenewals — s'exécute le lendemain de due_date]
+
+solde_restant   = total_due - total_repaid
+nouveau_terme   = due_date + durée_initiale_en_mois
+si nouveau_terme > cycle.end_date → nouveau_terme = cycle.end_date
+
+UPDATE loans
+  SET amount        = solde_restant,       -- reconduit sur le SOLDE RESTANT (pas le montant initial)
+      due_date      = nouveau_terme,
+      renewal_count = renewal_count + 1,
+      interest_rate = recalculé depuis settings (loan_max_rate),
+      total_due     = recalculé sur solde_restant + nouveaux intérêts,
+      updated_at    = now()
+-- Régénère l'échéancier (loan_repayments) pour les nouvelles mensualités
+-- original_amount reste inchangé (trace du montant initial)
+```
+
+- La reconduction est **loguée** dans `audit_logs` et **notifiée** au membre + au trésorier
+- Si `due_date = cycle.end_date` et prêt toujours non soldé → mise en défaut forcée (`status = defaulted`) + blocage de la clôture du cycle
 
 ---
 

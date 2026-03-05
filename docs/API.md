@@ -58,6 +58,22 @@ Auth : `Authorization: Bearer <access_token>` (sauf routes publiques)
 
 ---
 
+## Cycles d'activité
+
+> Disponible pour `association` et `federation` uniquement.
+
+| Méthode | Endpoint | Rôle min | Description |
+|---------|----------|----------|-------------|
+| GET  | `/associations/{id}/cycles` | member | Liste des exercices |
+| POST | `/associations/{id}/cycles` | president | Créer un exercice (→ status: draft) |
+| GET  | `/associations/{id}/cycles/{cId}` | member | Détail exercice |
+| PUT  | `/associations/{id}/cycles/{cId}/activate` | president | Activer l'exercice (→ status: active) |
+| PUT  | `/associations/{id}/cycles/{cId}/initiate-closing` | president | Initier la clôture (→ status: closing) — bloqué si prêts actifs |
+| PUT  | `/associations/{id}/cycles/{cId}/close` | president | Clôturer (→ status: closed) — déclenche distribution intérêts + retrait épargnes |
+| GET  | `/associations/{id}/cycles/{cId}/interest-preview` | treasurer | Aperçu distribution intérêts (pro-rata calculé, non appliqué) |
+
+---
+
 ## Bureau & Elections
 
 ### Postes du bureau
@@ -166,6 +182,8 @@ Auth : `Authorization: Bearer <access_token>` (sauf routes publiques)
 
 *membre peut voir seulement ses propres emprunts
 
+> **Contraintes cycle :** Un prêt ne peut être créé que si un cycle est `active` pour l'association. La `due_date` calculée par `LoanService` est automatiquement plafonnée à `cycle.end_date`. Si le membre demande une durée excédant la fin du cycle, `LoanService` retourne une erreur 422.
+
 > **Corps POST /loans :**
 > ```json
 > {
@@ -187,6 +205,27 @@ Auth : `Authorization: Bearer <access_token>` (sauf routes publiques)
 > **Deux modes d'enchères distincts :**
 > - **`bidding`** (pré-tontine) : chaque membre soumet un `bid_amount` avant le démarrage. L'ordre de rotation est déterminé une fois pour tout le cycle. Endpoint : `PUT /members/me/bid`
 > - **`session_auction`** (par séance) : enchères à chaque séance entre membres éligibles. Le gagnant reçoit la cagnotte moins le montant adjugé, qui alimente une caisse redistribuée en fin de cycle. Endpoints : `POST/GET /sessions/{sId}/bids` + `PUT /sessions/{sId}/adjudicate`
+
+---
+
+## Épargnes
+
+> Disponible pour `association` et `federation` avec `savings_enabled = true`.
+
+| Méthode | Endpoint | Rôle min | Description |
+|---------|----------|----------|-------------|
+| GET  | `/associations/{id}/savings/pool` | treasurer | Solde du capital de prêt (épargnes + apports − prêts actifs) |
+| GET  | `/associations/{id}/savings/accounts` | treasurer | Liste comptes épargne du cycle actif |
+| GET  | `/associations/{id}/savings/accounts/me` | member | Mon compte épargne du cycle actif |
+| POST | `/associations/{id}/savings/deposit` | treasurer | Enregistrer un dépôt pour un membre |
+| GET  | `/associations/{id}/savings/transactions` | treasurer | Historique transactions (tous membres) |
+| GET  | `/associations/{id}/savings/transactions/me` | member | Mes transactions épargne |
+| POST | `/associations/{id}/savings/snapshot` | treasurer | Prendre un snapshot manuel (secours) |
+| GET  | `/associations/{id}/savings/snapshots` | treasurer | Liste snapshots du cycle actif |
+| POST | `/associations/{id}/savings/pool/entries` | president | Enregistrer un apport externe au capital |
+| GET  | `/associations/{id}/savings/pool/entries` | treasurer | Liste des apports externes |
+
+> **Note :** Le snapshot automatique est déclenché par le job `TakeSavingsSnapshots` au moment de chaque séance d'assemblée. L'endpoint manuel est fourni en secours.
 
 ---
 

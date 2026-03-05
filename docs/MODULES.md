@@ -61,9 +61,12 @@ Flux alternatif (avec SMS) : phone → OTP envoyé → vérifier OTP → tokens
 ### Composants
 - `AssociationController` — CRUD association
 - `SettingsController` — GET/PUT settings
+- `CycleController` — CRUD cycles d'exercice (créer, activer, initier clôture, clôturer)
 - `AssociationModel` — CRUD, slug auto-généré
 - `AssociationSettingModel` — Stockage clé/valeur
+- `CycleModel` — CRUD association_cycles
 - `AssociationService` — Logique création, validation slug unique, gestion settings
+- `CycleService` — Logique cycle (activation, validation prêts soldés avant clôture, distribution intérêts)
 - `AssociationEntity` — Accesseurs (getSettings, isActive...)
 
 ### Champs d'identité (table `associations`)
@@ -91,6 +94,7 @@ Communs aux 3 types, tous éditables après création :
 - Le formulaire de création varie selon le type (statuts requis uniquement pour association/federation)
 - Les endpoints `/admin/associations/*` sont réservés au `super_admin`
 - Les features disponibles (bureau, emprunts, solidarité...) sont conditionnées au `type` et au plan SaaS actif
+- Les cycles d'activité (`association_cycles`) sont gérés depuis ce module — réservés aux `association` et `federation`
 
 ---
 
@@ -265,7 +269,7 @@ draft → open (vote actif) → closed (dépouillement + publication résultats)
 - `LoanModel` — CRUD loans
 - `LoanGuaranteeModel` — Garanties associées (création en cascade avec le loan)
 - `LoanRepaymentModel` — Échéancier et paiements
-- `LoanService` — Workflow approbation, création garanties en cascade, taux depuis settings, génération échéancier
+- `LoanService` — Workflow approbation, création garanties en cascade, taux depuis settings, génération échéancier, reconduction sur solde restant (CheckLoanRenewals), contrainte due_date ≤ cycle.end_date
 - `InterestCalculator` — Calcul intérêts simple/composé, génération échéancier
 
 ### Calcul d'intérêts
@@ -298,7 +302,54 @@ treasurer → PUT  /loans/approve   (status: approved)
 treasurer → PUT  /loans/disburse  (status: active, disbursed_at = now(), génère échéancier)
 treasurer → PUT  /loans/reject    (status: rejected)
 treasurer → POST /repayments      (status: active → completed si soldé)
+→ [auto job] CheckLoanRenewals : reconduction sur solde restant si non soldé à due_date
+→ [treasurer/auto] clôture cycle : tous prêts doivent être completed avant closing → closed
 ```
+
+---
+
+## Module Savings (Épargnes)
+
+**Responsabilité** : Gestion des comptes épargne des membres, capital de prêt, distribution des intérêts en fin de cycle.
+
+> Réservé aux `association` et `federation`. Activé par `savings_enabled = true` dans les settings.
+
+### Composants
+- `SavingsController` — Comptes épargne, dépôts, retraits, capital pool, distribution fin de cycle
+- `SavingsPoolController` — Apports externes au capital de prêt
+- `SavingsAccountModel` — Compte épargne par membre par cycle
+- `SavingsTransactionModel` — Historique dépôts / retraits / versements intérêts
+- `SavingsSnapshotModel` — Snapshots d'avoir par séance
+- `SavingsPoolEntryModel` — Apports externes (savings_pool_entries)
+- `SavingsService` — Logique dépôt, snapshot, calcul pro-rata, distribution intérêts à la clôture
+- `InterestDistributionService` — Calcul pro-rata intérêts + génération des transactions `interest_payout`
+
+### Flux principal
+```
+1. Membre dépose → SavingsService::deposit() → savings_transactions(deposit)
+2. À chaque séance → SavingsService::takeSnapshot() → savings_snapshots (balance + loans_active)
+3. Fin de cycle → InterestDistributionService::distribute() :
+     a. Calcul score par membre (Σ balance sur séances loans_active = 1)
+     b. pro_rata = score_membre / score_total × total_intérêts_cycle
+     c. savings_accounts.interest_earned = pro_rata
+     d. savings_transactions(interest_payout) + savings_transactions(withdrawal)
+     e. savings_accounts.status = 'closed'
+```
+
+### Calcul du capital disponible
+```
+SavingsService::getAvailableCapital(association_id, cycle_id):
+  = Σ(savings_accounts.balance actifs)
+  + Σ(savings_pool_entries.amount type=injection)
+  - Σ(savings_pool_entries.amount type=withdrawal)
+  - Σ(loans.amount WHERE status IN ('active','approved'))
+```
+Ce montant est vérifié par `LoanService` avant d'approuver un emprunt.
+
+### Snapshots automatiques
+- Déclenchés par job planifié `TakeSavingsSnapshots` le jour de chaque séance d'assemblée
+- Ou manuellement par le trésorier (secours)
+- `loans_active` = true si `COUNT(loans WHERE association_id = X AND status = 'active') > 0`
 
 ---
 

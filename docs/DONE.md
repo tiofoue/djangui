@@ -50,6 +50,20 @@
 - [x] Paiement : MTN MoMo + Orange Money + job `CheckSubscriptions`
 - [x] Intégration dans : DATABASE.md, BUSINESS_RULES.md, MODULES.md, API.md, ARCHITECTURE.md, ROADMAP.md, TODO.md
 
+## Sprint 1 — Cycles, Épargnes & Emprunts enrichis (2026-03-05)
+
+### Cycle d'activité, épargne-crédit, reconduction prêts
+- [x] `association_cycles` : table ajoutée (`draft → active → closing → closed`) — bornes de tous les prêts et épargnes
+- [x] `savings_accounts` + `savings_transactions` + `savings_snapshots` + `savings_pool_entries` : nouveau module Épargnes
+- [x] `loans` : ajout `cycle_id` FK, `original_amount` (conservé lors reconductions), `renewal_count`
+- [x] `BUSINESS_RULES.md` : nouvelles sections "Cycle d'activité" + "Épargnes" (formule pro-rata, protection anti-gaming, 2 exemples chiffrés) + sous-sections Emprunts (lien cycle, remboursement flexible, reconduction sur solde restant)
+- [x] `MODULES.md` : Associations → CycleController/Model/Service ; nouveau module Savings (SavingsController, InterestDistributionService, flux complet) ; Loans → LoanService reconduction
+- [x] `API.md` : nouvelle section Cycles + nouvelle section Épargnes + note contraintes cycle sur Emprunts
+- [x] `DATABASE.md` : 5 nouvelles tables, 3 nouveaux champs loans, 3 nouvelles clés settings
+- [x] `association_settings` : nouvelles clés `savings_enabled`, `cycle_start_month`, `loan_interest_distribution`
+
+---
+
 ## Sprint 1 — Processus demande de prêt (2026-03-05)
 
 ### Clarifications flux emprunt

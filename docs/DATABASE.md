@@ -31,9 +31,16 @@ tontine_session_bids          -- enchères par séance (mode session_auction)
 tontine_caisse_distributions  -- redistribution caisse fin de cycle
 tontine_slot_demotions        -- rétrogradations par le modérateur
 
+association_cycles           -- exercices annuels (ou custom) de l'association
+
 loans
 loan_guarantees
 loan_repayments
+
+savings_accounts             -- compte épargne par membre par cycle
+savings_transactions         -- dépôts/retraits épargne
+savings_snapshots            -- avoir par séance (pro-rata intérêts)
+savings_pool_entries         -- apports externes au capital de prêt
 
 solidarity_funds
 solidarity_contributions
@@ -134,6 +141,9 @@ Exemple : `"Num de Compte"` → key=`num_de_compte`, label=`"Num de Compte"`
 - `rotation_default_mode` — random | manual | bidding
 - `invitation_requires_approval` — true | false
 - `loan_default_delay_days` — nb de jours de retard avant mise en défaut automatique (défaut : 30)
+- `savings_enabled` — true | false — active le module épargne pour l'association (défaut : false pour tontine_group)
+- `cycle_start_month` — mois de démarrage de l'exercice (1=janvier, défaut : 1)
+- `loan_interest_distribution` — pourcentage des intérêts reversés aux épargnants (défaut : 1.0 = 100%)
 
 ### `association_members`
 ```sql
@@ -287,6 +297,28 @@ created_at      DATETIME
 -- Index : (user_id), (jti), (token_hash)
 ```
 
+### `association_cycles`
+```sql
+id              BIGINT UNSIGNED PK AUTO_INCREMENT
+association_id  BIGINT UNSIGNED FK → associations.id
+cycle_number    INT UNSIGNED NOT NULL
+label           VARCHAR(100) NOT NULL              -- ex: "Exercice 2026"
+start_date      DATE NOT NULL
+end_date        DATE NOT NULL
+status          ENUM('draft','active','closing','closed') DEFAULT 'draft'
+-- draft   : en préparation
+-- active  : exercice en cours (un seul actif par association)
+-- closing : clôture initiée, attente remboursement tous prêts
+-- closed  : clôture effective, intérêts distribués, épargnes retirées
+closed_at       DATETIME NULL
+closing_notes   TEXT NULL
+created_by      BIGINT UNSIGNED FK → users.id
+created_at      DATETIME
+updated_at      DATETIME
+UNIQUE(association_id, cycle_number)
+-- Index : (association_id, status) pour récupérer le cycle actif
+```
+
 ---
 
 ### `tontines`
@@ -428,10 +460,13 @@ UNIQUE(session_id, member_id)
 id              BIGINT UNSIGNED PK AUTO_INCREMENT
 association_id  BIGINT UNSIGNED FK → associations.id
 member_id       BIGINT UNSIGNED FK → users.id
+cycle_id        BIGINT UNSIGNED FK → association_cycles.id   -- cycle auquel appartient ce prêt
 amount          DECIMAL(15,2) NOT NULL
 interest_rate   DECIMAL(5,4) NOT NULL   -- ex: 0.1000 = 10% — fixé par LoanService depuis association_settings(loan_max_rate), non saisi par le membre
 interest_type   ENUM('simple','compound') NOT NULL
 duration_months INT NOT NULL
+original_amount DECIMAL(15,2) NOT NULL   -- montant initial du prêt (conservé lors des reconductions)
+renewal_count   INT UNSIGNED DEFAULT 0   -- nombre de fois recondu
 purpose         TEXT NULL
 status          ENUM('pending','approved','rejected','active','completed','defaulted')
 approved_by     BIGINT UNSIGNED FK → users.id NULL
@@ -473,6 +508,70 @@ penalty         DECIMAL(15,2) DEFAULT 0
 status          ENUM('pending','paid','partial','late') DEFAULT 'pending'
 paid_at         DATETIME NULL
 recorded_by     BIGINT UNSIGNED FK → users.id NULL
+created_at      DATETIME
+```
+
+---
+
+### `savings_accounts` — Compte épargne par membre par cycle
+```sql
+id              BIGINT UNSIGNED PK AUTO_INCREMENT
+association_id  BIGINT UNSIGNED FK → associations.id
+cycle_id        BIGINT UNSIGNED FK → association_cycles.id
+member_id       BIGINT UNSIGNED FK → users.id
+balance         DECIMAL(15,2) DEFAULT 0
+total_deposited DECIMAL(15,2) DEFAULT 0
+interest_earned DECIMAL(15,2) DEFAULT 0   -- calculé et crédité lors de la clôture du cycle
+status          ENUM('active','closed') DEFAULT 'active'
+closed_at       DATETIME NULL             -- rempli à la clôture du cycle (retrait effectué)
+created_at      DATETIME
+updated_at      DATETIME
+UNIQUE(cycle_id, member_id)
+```
+
+### `savings_transactions` — Historique dépôts / retraits
+```sql
+id                  BIGINT UNSIGNED PK AUTO_INCREMENT
+account_id          BIGINT UNSIGNED FK → savings_accounts.id
+association_id      BIGINT UNSIGNED FK → associations.id
+type                ENUM('deposit','withdrawal','interest_payout') NOT NULL
+-- deposit          : dépôt d'épargne (séance courante)
+-- withdrawal       : retrait capital en fin de cycle
+-- interest_payout  : versement de la part d'intérêts en fin de cycle
+amount              DECIMAL(15,2) NOT NULL
+balance_after       DECIMAL(15,2) NOT NULL
+session_date        DATE NOT NULL              -- date de la séance ou opération
+tontine_session_id  BIGINT UNSIGNED NULL FK → tontine_sessions.id  -- si lié à une séance tontine
+payment_method      VARCHAR(50) NULL
+notes               TEXT NULL
+recorded_by         BIGINT UNSIGNED FK → users.id
+created_at          DATETIME
+```
+
+### `savings_snapshots` — Avoir par séance (pro-rata intérêts)
+```sql
+id              BIGINT UNSIGNED PK AUTO_INCREMENT
+account_id      BIGINT UNSIGNED FK → savings_accounts.id
+association_id  BIGINT UNSIGNED FK → associations.id
+cycle_id        BIGINT UNSIGNED FK → association_cycles.id
+snapshot_date   DATE NOT NULL
+balance         DECIMAL(15,2) NOT NULL    -- solde épargne du membre à cette date
+loans_active    TINYINT(1) DEFAULT 0      -- y avait-il au moins un prêt actif dans l'association à cette date ?
+created_at      DATETIME
+UNIQUE(account_id, snapshot_date)
+-- Note : seuls les snapshots avec loans_active = 1 entrent dans le calcul du pro-rata
+```
+
+### `savings_pool_entries` — Apports externes au capital de prêt
+```sql
+id              BIGINT UNSIGNED PK AUTO_INCREMENT
+association_id  BIGINT UNSIGNED FK → associations.id
+cycle_id        BIGINT UNSIGNED FK → association_cycles.id
+amount          DECIMAL(15,2) NOT NULL
+source          VARCHAR(255) NOT NULL      -- description de la source (ex: "Apport fédération", "Don externe")
+type            ENUM('injection','withdrawal') DEFAULT 'injection'
+recorded_by     BIGINT UNSIGNED FK → users.id
+notes           TEXT NULL
 created_at      DATETIME
 ```
 
