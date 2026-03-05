@@ -133,7 +133,7 @@ Exemple : `"Num de Compte"` → key=`num_de_compte`, label=`"Num de Compte"`
 - `tontine_default_amount` — Montant par défaut cotisation
 - `late_penalty_type` — Type de pénalité : `fixed` | `fixed_per_day` | `fixed_per_week` | `fixed_per_month` | `percentage` | `percentage_per_day` | `percentage_per_week` | `percentage_per_month` (défaut : `percentage_per_month`)
 - `late_penalty_value` — Valeur de la pénalité : montant XAF pour les types `fixed*`, taux décimal pour les types `percentage*` (ex: `0.05` = 5%)
-- `loan_max_rate` — Taux max intérêt emprunt
+- `loan_max_rate` — Taux d'intérêt emprunt appliqué **par période de prêt** (ex: 0.07 = 7%/trimestre — PAS annualisé)
 - `loan_default_interest_type` — simple | compound
 - `loan_max_duration_months` — Durée max emprunt en mois
 - `loan_requires_guarantor` — true | false
@@ -141,7 +141,7 @@ Exemple : `"Num de Compte"` → key=`num_de_compte`, label=`"Num de Compte"`
 - `rotation_default_mode` — random | manual | bidding
 - `invitation_requires_approval` — true | false
 - `loan_default_delay_days` — nb de jours de retard avant mise en défaut automatique (défaut : 30)
-- `fonds_caisse_monthly_amount` — montant fixe de cotisation Fonds de Caisse par membre par séance (ex: 1000 XAF)
+- `presence_amount` — montant de cotisation Présence par membre par séance d'assemblée (ex: 1000 XAF)
 - `savings_enabled` — true | false — active le module épargne pour l'association (défaut : false pour tontine_group)
 - `cycle_start_month` — mois de démarrage de l'exercice (1=janvier, défaut : 1)
 - `loan_interest_distribution` — pourcentage des intérêts reversés aux épargnants (défaut : 1.0 = 100%)
@@ -486,14 +486,16 @@ id                   BIGINT UNSIGNED PK AUTO_INCREMENT
 loan_id              BIGINT UNSIGNED FK → loans.id
 type                 ENUM('member','savings','tontine_share','admin_approval')
 guarantor_user_id    BIGINT UNSIGNED NULL FK → users.id          -- si type = member
-tontine_member_id    BIGINT UNSIGNED NULL FK → tontine_members.id -- si type = tontine_share ou savings
--- Contrainte Service : guarantor_user_id requis si type=member, tontine_member_id requis si type=tontine_share|savings
+tontine_member_id    BIGINT UNSIGNED NULL FK → tontine_members.id -- si type = tontine_share
+savings_account_id   BIGINT UNSIGNED NULL FK → savings_accounts.id -- si type = savings (épargne bloquée)
+-- Contrainte Service : guarantor_user_id requis si type=member, tontine_member_id requis si type=tontine_share, savings_account_id requis si type=savings
 amount_pledged       DECIMAL(15,2) NULL
 status               ENUM('pending','confirmed','released') DEFAULT 'pending'
 confirmed_at         DATETIME NULL
 created_at           DATETIME
 updated_at           DATETIME
 ```
+> **Garantie `savings`** : les fonds du compte épargne référencé sont bloqués jusqu'au remboursement complet du prêt. `status = confirmed` automatiquement à la création. `SavingsService::blockForGuarantee()` / `releaseGuarantee()` gèrent le blocage/déblocage. Le montant bloqué est exclu du capital disponible dans `SavingsService::getAvailableCapital()`.
 
 ### `loan_repayments`
 ```sql
@@ -535,11 +537,11 @@ UNIQUE(cycle_id, member_id)
 id                  BIGINT UNSIGNED PK AUTO_INCREMENT
 account_id          BIGINT UNSIGNED FK → savings_accounts.id
 association_id      BIGINT UNSIGNED FK → associations.id
-type                ENUM('deposit','withdrawal','interest_payout','fonds_caisse') NOT NULL
+type                ENUM('deposit','withdrawal','interest_payout','presence') NOT NULL
 -- deposit          : dépôt d'épargne variable (séance courante)
 -- withdrawal       : retrait capital en fin de cycle
 -- interest_payout  : versement de la part d'intérêts en fin de cycle
--- fonds_caisse     : cotisation mensuelle fixe (frais de fonctionnement, non inclus pro-rata intérêts)
+-- presence         : cotisation versée à chaque séance d'assemblée (frais de fonctionnement, non inclus pro-rata intérêts)
 amount              DECIMAL(15,2) NOT NULL
 balance_after       DECIMAL(15,2) NOT NULL
 session_date        DATE NOT NULL              -- date de la séance ou opération

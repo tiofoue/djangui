@@ -218,8 +218,8 @@ Auth : `Authorization: Bearer <access_token>` (sauf routes publiques)
 | GET  | `/associations/{id}/savings/accounts` | treasurer | Liste comptes épargne du cycle actif |
 | GET  | `/associations/{id}/savings/accounts/me` | member | Mon compte épargne du cycle actif |
 | POST | `/associations/{id}/savings/deposit` | treasurer | Enregistrer un dépôt pour un membre |
-| POST | `/associations/{id}/savings/fonds-caisse` | treasurer | Enregistrer la cotisation Fonds de Caisse d'un ou plusieurs membres |
-| GET  | `/associations/{id}/savings/fonds-caisse` | treasurer | Historique Fonds de Caisse du cycle actif |
+| POST | `/associations/{id}/savings/presence` | treasurer | Enregistrer la cotisation Présence d'un ou plusieurs membres |
+| GET  | `/associations/{id}/savings/presence` | treasurer | Historique Présence du cycle actif |
 | GET  | `/associations/{id}/savings/transactions` | treasurer | Historique transactions (tous membres) |
 | GET  | `/associations/{id}/savings/transactions/me` | member | Mes transactions épargne |
 | POST | `/associations/{id}/savings/snapshot` | treasurer | Prendre un snapshot manuel (secours) |
@@ -289,13 +289,15 @@ Auth : `Authorization: Bearer <access_token>` (sauf routes publiques)
 | Méthode | Endpoint | Rôle min | Description |
 |---------|----------|----------|-------------|
 | GET | `/associations/{id}/reports/members` | treasurer | Liste membres (PDF + CSV) |
-| GET | `/associations/{id}/reports/member/{userId}` | treasurer | Fiche membre (PDF) |
+| GET | `/associations/{id}/reports/member/{userId}` | treasurer | Fiche membre (cotisations, emprunts, solidarité, épargne, présences) (PDF) |
 | GET | `/associations/{id}/reports/tontine/{tId}` | treasurer | État tontine — avoirs, rotation, dettes (PDF) |
 | GET | `/associations/{id}/reports/loans` | treasurer | État emprunts actifs + retards (PDF + CSV) |
 | GET | `/associations/{id}/reports/solidarity` | treasurer | Relevé caisse solidarité (PDF) |
 | GET | `/associations/{id}/reports/bureau` | member | Bureau actuel — postes et mandats (PDF) |
 | GET | `/associations/{id}/reports/fundraising/{fId}` | member | Détail main levée (PDF) |
 | GET | `/associations/{id}/reports/session/{sId}` | member | PV de séance tontine (PDF) |
+| GET | `/associations/{id}/reports/savings/{cId}` | treasurer | État épargnes du cycle (comptes, soldes, intérêts distribués) (PDF + CSV) |
+| GET | `/associations/{id}/reports/cycle/{cId}` | president | Bilan d'exercice (capital, prêts, intérêts, présences) (PDF) |
 
 Query param : `?format=pdf` (défaut) ou `?format=csv` (disponible selon le plan)
 

@@ -315,19 +315,19 @@ treasurer → POST /repayments      (status: active → completed si soldé)
 > Réservé aux `association` et `federation`. Activé par `savings_enabled = true` dans les settings.
 
 ### Composants
-- `SavingsController` — Comptes épargne, dépôts, retraits, capital pool, distribution fin de cycle
+- `SavingsController` — Comptes épargne, dépôts, retraits, présence, capital pool, distribution fin de cycle
 - `SavingsPoolController` — Apports externes au capital de prêt
 - `SavingsAccountModel` — Compte épargne par membre par cycle
 - `SavingsTransactionModel` — Historique dépôts / retraits / versements intérêts
 - `SavingsSnapshotModel` — Snapshots d'avoir par séance
 - `SavingsPoolEntryModel` — Apports externes (savings_pool_entries)
-- `SavingsService` — Logique dépôt, fonds_caisse, snapshot (solde cumulatif), calcul pro-rata, distribution intérêts à la clôture
+- `SavingsService` — Logique dépôt, présence, snapshot (solde cumulatif), calcul pro-rata, distribution intérêts à la clôture
 - `InterestDistributionService` — Calcul pro-rata intérêts + génération des transactions `interest_payout`
 
 ### Flux principal
 ```
 1. Membre dépose → SavingsService::deposit() → savings_transactions(type=deposit)
-   Membre verse fonds_caisse → SavingsService::recordFondsCaisse() → savings_transactions(type=fonds_caisse)
+   Membre verse présence → SavingsService::recordPresence() → savings_transactions(type=presence)
 2. À chaque séance → SavingsService::takeSnapshot() → savings_snapshots (balance=solde_cumulatif + loans_active)
 3. Fin de cycle → InterestDistributionService::distribute() :
      a. Calcul score par membre = Σ(balance_cumulatif aux séances où loans_active = 1)
@@ -346,6 +346,14 @@ SavingsService::getAvailableCapital(association_id, cycle_id):
   - Σ(loans.amount WHERE status IN ('active','approved'))
 ```
 Ce montant est vérifié par `LoanService` avant d'approuver un emprunt.
+
+### Garantie de type `savings` (épargne bloquée)
+Lorsqu'un membre utilise son épargne comme garantie (`loan_guarantees.type = 'savings'`) :
+- `LoanService` crée la garantie avec `status = confirmed` automatiquement (pas de confirmation séparée requise)
+- La garantie référence `loan_guarantees.savings_account_id → savings_accounts.id`
+- `SavingsService::blockForGuarantee(account_id, amount)` marque les fonds comme bloqués (non retirables)
+- Le montant bloqué est **déduit du capital disponible** dans `getAvailableCapital()` jusqu'à libération
+- À remboursement complet du prêt : `LoanService` appelle `SavingsService::releaseGuarantee()` → fonds débloqués
 
 ### Snapshots automatiques
 - Déclenchés par job planifié `TakeSavingsSnapshots` le jour de chaque séance d'assemblée
@@ -432,6 +440,10 @@ Ce montant est vérifié par `LoanService` avant d'approuver un emprunt.
 | Cotisation en retard | SMS + Email si disponible + Push |
 | Emprunt approuvé/rejeté | SMS + Email si disponible + Push |
 | Emprunt en défaut | SMS + Email si disponible + Push |
+| Emprunt reconduit (CAS 1 — capitalisation) | SMS + Email si disponible + Push |
+| Emprunt reconduit (CAS 2 — solde restant forcé) | SMS + Email si disponible + Push |
+| Distribution intérêts (clôture cycle) | SMS + Email si disponible + Push |
+| Présence non enregistrée à la séance | Push |
 | Demande solidarité approuvée | SMS + Email si disponible + Push |
 | Nouveau document publié | Push |
 
@@ -459,13 +471,15 @@ Ce montant est vérifié par `LoanService` avant d'approuver un emprunt.
 | Rapport | Contenu | Format | Rôle min |
 |---------|---------|--------|----------|
 | `members` | Liste membres (nom, téléphone, rôle, adhésion) | PDF + CSV | treasurer |
-| `member/{userId}` | Fiche membre (cotisations, emprunts, solidarité) | PDF | treasurer |
+| `member/{userId}` | Fiche membre (cotisations, emprunts, solidarité, épargne, présences) | PDF | treasurer |
 | `tontine/{tId}` | État tontine (sessions, avoirs, dettes, rotation) | PDF | treasurer |
 | `loans` | État des emprunts actifs et en retard | PDF + CSV | treasurer |
 | `solidarity` | Relevé caisse solidarité | PDF | treasurer |
 | `bureau` | Bureau actuel (postes, titulaires, mandats) | PDF | member |
 | `fundraising/{fId}` | Détail main levée (contributions, remise) | PDF | member |
 | `session/{sId}` | PV de séance tontine (présents, paiements, bénéficiaire) | PDF | member |
+| `savings/{cId}` | État épargnes du cycle (comptes, soldes, intérêts distribués) | PDF + CSV | treasurer |
+| `cycle/{cId}` | Bilan d'exercice (capital, prêts, intérêts, présences) | PDF | president |
 
 ### Entête des documents PDF
 Composée des champs d'identité de l'association : logo, name, slogan, address, bp, phone, tax_number, auth_number + champs personnalisés (`is_custom = 1`).

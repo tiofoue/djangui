@@ -118,15 +118,47 @@
 
 ---
 
-## Sprint 3 — Emprunts
+## Sprint 3 — Cycles, Épargnes & Emprunts
+
+### Module Associations — Cycles d'activité
+**Migrations :**
+- [ ] `association_cycles` (draft → active → closing → closed ; UNIQUE(association_id, cycle_number))
+
+**Code :**
+- [ ] `CycleModel` : CRUD association_cycles, requête cycle actif par association
+- [ ] `CycleService` : activation (un seul actif par association), validation prêts soldés avant initiation clôture, distribution intérêts (appel `InterestDistributionService`), retrait épargnes à la clôture
+- [ ] `CycleController` : CRUD cycles, activate, initiate-closing, close, interest-preview
+- [ ] Tests Cycles
+
+### Module Savings (Épargnes)
+**Migrations (ordre FK) :**
+- [ ] `savings_accounts` (UNIQUE(cycle_id, member_id))
+- [ ] `savings_transactions` (type ENUM: deposit / withdrawal / interest_payout / presence)
+- [ ] `savings_snapshots` (UNIQUE(account_id, snapshot_date))
+- [ ] `savings_pool_entries`
+
+**Mise à jour `loan_guarantees` :**
+- [ ] Ajouter colonne `savings_account_id BIGINT UNSIGNED NULL FK → savings_accounts.id` (si type = savings)
+
+**Code :**
+- [ ] `SavingsAccountModel`, `SavingsTransactionModel`, `SavingsSnapshotModel`, `SavingsPoolEntryModel`
+- [ ] `SavingsService` : `deposit()`, `recordPresence()`, `takeSnapshot()`, `getAvailableCapital()`, `blockForGuarantee()`, `releaseGuarantee()`
+- [ ] `InterestDistributionService` : calcul pro-rata (score membre / score total × intérêts × loan_interest_distribution), génération transactions `interest_payout`
+- [ ] `SavingsController` : comptes, dépôts, présence (POST/GET /savings/presence), pool, snapshots
+- [ ] `SavingsPoolController` : apports externes (pool/entries)
+- [ ] Tests Savings
 
 ### Module Loans
 **Migrations :**
-- [ ] `loans`, `loan_repayments`
-- [ ] `loan_guarantees` (guarantor_user_id, tontine_member_id — pas de ref_id)
+- [ ] `loans` (cycle_id FK → association_cycles.id, original_amount, renewal_count)
+- [ ] `loan_repayments`
+- [ ] `loan_guarantees` (guarantor_user_id, savings_account_id, tontine_member_id — pas de ref_id)
 
 **Code :**
 - [ ] `LoanService` : workflow pending → approved → active (disburse) → completed
+- [ ] `LoanService` : contrainte due_date ≤ cycle.end_date, taux depuis association_settings.loan_max_rate
+- [ ] `LoanService` : reconduction CAS 1 (capitalisation : amount × (1+rate)) + CAS 2 (solde restant)
+- [ ] `LoanService` : création garanties en cascade (savings → blockForGuarantee, released → releaseGuarantee)
 - [ ] `InterestCalculator` : intérêts simple + composé, génération échéancier à disbursed_at
 - [ ] Endpoint `PUT /loans/{lId}/disburse` (génère échéancier, calcule total_due)
 - [ ] Imputation remboursements : pénalités → intérêts → capital
@@ -134,6 +166,8 @@
 
 ### Jobs planifiés
 - [ ] `CheckLoanDefaults` : active → defaulted après loan_default_delay_days (configurable)
+- [ ] `TakeSavingsSnapshots` : déclenché au moment de chaque séance d'assemblée (snapshot solde cumulatif + loans_active)
+- [ ] `CheckLoanRenewals` : reconduction sur solde restant si non soldé à due_date (CAS 2)
 
 ---
 

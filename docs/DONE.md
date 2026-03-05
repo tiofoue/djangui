@@ -6,10 +6,10 @@
 - [x] `BUSINESS_RULES.md` : taux d'intérêt documenté comme "par période" (pas annualisé) + exemple 7%/trimestre
 - [x] `BUSINESS_RULES.md` : reconduction — 2 cas documentés : CAS 1 (capitalisation : amount × (1+rate) si remboursement complet) | CAS 2 (solde restant si impayé forcé) — remplace la doc "reconduction sur solde restant" unique
 - [x] `BUSINESS_RULES.md` : snapshot = solde **cumulatif** clarifié (pas dépôt mensuel seul) — vérifié sur données réelles AJRD
-- [x] `BUSINESS_RULES.md` : Fonds de Caisse documenté (cotisation fixe mensuelle, non inclus dans pro-rata intérêts)
-- [x] `DATABASE.md` : `loans.interest_rate` commentaire corrigé (par période) ; `savings_snapshots.balance` précisé (cumulatif) ; `savings_transactions.type` étendu à `fonds_caisse` ; nouvelle clé `fonds_caisse_monthly_amount`
-- [x] `MODULES.md` : LoanService reconduction mise à jour (2 cas) ; SavingsService fonds_caisse + snapshot cumulatif
-- [x] `API.md` : endpoints Fonds de Caisse ajoutés ; note contrainte cycle corrigée
+- [x] `BUSINESS_RULES.md` : Présence documentée (cotisation versée à chaque séance d'assemblée, non inclus dans pro-rata intérêts)
+- [x] `DATABASE.md` : `loans.interest_rate` commentaire corrigé (par période) ; `savings_snapshots.balance` précisé (cumulatif) ; `savings_transactions.type` étendu à `presence` ; nouvelle clé `presence_amount`
+- [x] `MODULES.md` : LoanService reconduction mise à jour (2 cas) ; SavingsService présence (recordPresence) + snapshot cumulatif
+- [x] `API.md` : endpoints Présence ajoutés (POST/GET /savings/presence) ; note contrainte cycle corrigée
 
 ---
 

@@ -79,6 +79,8 @@ suspended      → active    (réhabilitation)
 
 > **Réservé aux entités de type `association` et `federation`.**
 > Les `tontine_group` n'ont pas accès à ce module.
+>
+> **Distinct du cycle de tontine** : le cycle d'activité de l'association (`association_cycles`) est l'exercice financier annuel qui encadre les épargnes et les prêts. Le cycle de tontine (`tontines.current_cycle`) est propre à chaque tontine et gère la rotation des bénéficiaires. Ces deux notions sont indépendantes.
 
 - Chaque association définit un **exercice** (période d'activité financière, ex. janvier→décembre)
 - Un seul cycle peut être `active` à la fois par association
@@ -133,8 +135,9 @@ Le trésorier consulte ce solde avant d'approuver tout nouvel emprunt.
 score_membre = Σ(balance_membre sur toutes séances où loans_active = 1)
 score_total  = Σ(balance_tous_membres sur les mêmes séances)
 
-part_intérêts_membre = (score_membre / score_total) × total_intérêts_collectés_du_cycle
+part_intérêts_membre = (score_membre / score_total) × total_intérêts_collectés_du_cycle × loan_interest_distribution
 ```
+- `loan_interest_distribution` = pourcentage des intérêts reversés aux épargnants (défaut : 1.0 = 100%), configuré dans `association_settings`
 
 **Protection anti-gaming :**
 Seules les séances avec au moins un prêt actif entrent dans le calcul.
@@ -163,11 +166,11 @@ Score A = 120 000 | Score B = 0 → **A reçoit 100 % des intérêts**
 Score A = 660 000 | Score B = 810 000 | Total = 1 470 000
 → **A : 44,9 %** (récompensé pour épargne précoce) | **B : 55,1 %** (contribution réelle depuis M4)
 
-### Fonds de Caisse
-- Cotisation mensuelle **fixe** versée par chaque membre actif (ex : 1 000 XAF/mois)
-- **Distinct de l'épargne variable** : tracé séparément via `savings_transactions.type = 'fonds_caisse'`
+### Présence
+- Cotisation versée à **chaque séance** d'assemblée par chaque membre actif (le montant est défini par l'association)
+- **Distinct de l'épargne variable** : tracé séparément via `savings_transactions.type = 'presence'`
 - **Non inclus dans le calcul du pro-rata des intérêts** — réservé aux frais de fonctionnement de l'association
-- Montant configuré via `association_settings.fonds_caisse_monthly_amount`
+- Montant configuré via `association_settings.presence_amount`
 - Enregistré par le trésorier lors de chaque séance d'assemblée
 
 ---
@@ -402,6 +405,8 @@ Exemple : caisse = 210 000 XAF, 21 parts totales
 - Le trésorier ou le président peut aussi effectuer cette action en l'absence du modérateur
 
 ### Reconduction tacite
+> **Note :** `tontines.current_cycle` est le compteur de cycles de la tontine elle-même (rotation des bénéficiaires). Il est distinct du cycle d'activité de l'association (`association_cycles`).
+
 - Par défaut, une tontine est **reconduite automatiquement** à la fin de chaque cycle (`auto_renew = true`)
 - Au début de chaque nouveau cycle :
   - `tontines.current_cycle` est incrémenté
@@ -454,7 +459,7 @@ Le membre soumet en une seule requête :
   - Le garant doit **confirmer explicitement** via `PUT /loans/{lId}/guarantees/{gId}/confirm` → `status = confirmed`
   - Le trésorier peut approuver le prêt avant ou après confirmation (selon `loan_requires_guarantor` dans les settings)
   - Si l'emprunteur est en défaut, le garant est notifié et peut être sollicité
-- **Épargne** (`type = savings`) : les fonds épargne du membre sont bloqués jusqu'à remboursement complet — `status = confirmed` automatiquement
+- **Épargne** (`type = savings`) : les fonds du compte épargne du membre (`savings_account_id`) sont bloqués jusqu'à remboursement complet — `status = confirmed` automatiquement ; `SavingsService::blockForGuarantee()` / `releaseGuarantee()` gèrent le cycle de vie
 - **Part tontine non perçue** (`type = tontine_share`) : valeur des tours non encore reçus mise en garantie — `status = confirmed` automatiquement
 - **Approbation admin** (`type = admin_approval`) : pas de garantie financière, juste accord du président/trésorier — `status = confirmed` à l'approbation du prêt
 
