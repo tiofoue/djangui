@@ -314,8 +314,8 @@ treasurer → POST /repayments      (status: active → completed si soldé)
 - `SolidarityRequestModel` — Demandes de déblocage fond permanent
 - `FundraisingModel` — Main levées
 - `FundraisingContributionModel` — Contributions volontaires aux main levées
-- `SolidarityService` — Logique versements, approbations, balance
-- `FundraisingService` — Logique main levée : clôture, remise, archivage
+- `SolidarityService` — Logique versements, approbations, balance, `creditFundFromFundraising()`
+- `FundraisingService` — Logique main levée : clôture, remise, archivage, versement au fond si `beneficiary_type = fund`
 
 ### Raisons de demande (fond permanent)
 - Décès (membre ou famille proche)
@@ -324,11 +324,18 @@ treasurer → POST /repayments      (status: active → completed si soldé)
 - Naissance
 - Autre (avec description)
 
+### Traçabilité des versements
+À la transition `approved → disbursed`, le Service requiert :
+- `payment_method` : cash | mtn_momo | orange_money | transfer
+- `recorded_by` : id du trésorier/président ayant enregistré le versement
+
 ### Main levée
-- Initiée par le président ou le trésorier. La remise au bénéficiaire (`handed_over`) est réservée au président.
+- Initiée par le président ou le trésorier. La remise (`handed_over`) est réservée au président.
 - Montant fixe suggéré ou libre
 - Contributions volontaires des membres
 - Archivage complet et permanent à la remise (motif + contributions + bénéficiaire + notes)
+- **3 types de bénéficiaire** : `member` (membre identifié) | `external` (personne externe) | `fund` (renflouement caisse solidarité)
+- Si `beneficiary_type = fund` : `FundraisingService` appelle `SolidarityService::creditFundFromFundraising()` → crédite `solidarity_funds.balance`
 
 ---
 

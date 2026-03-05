@@ -515,9 +515,13 @@ amount_mode         ENUM('fixed','free') DEFAULT 'free'
 suggested_amount    DECIMAL(15,2) NULL   -- si amount_mode = fixed
 total_collected     DECIMAL(15,2) DEFAULT 0
 status              ENUM('open','closed','handed_over') DEFAULT 'open'
-beneficiary_type    ENUM('member','external') NULL
-beneficiary_id      BIGINT UNSIGNED FK → users.id NULL   -- si member
-beneficiary_name    VARCHAR(255) NULL                    -- si external
+beneficiary_type    ENUM('member','external','fund') NULL
+-- 'member'   : aide à un membre identifié (beneficiary_id requis)
+-- 'external' : bénéficiaire externe (beneficiary_name requis)
+-- 'fund'     : renflouement de la caisse de solidarité (fund_id requis)
+beneficiary_id      BIGINT UNSIGNED FK → users.id NULL       -- si beneficiary_type = member
+beneficiary_name    VARCHAR(255) NULL                        -- si beneficiary_type = external
+fund_id             BIGINT UNSIGNED FK → solidarity_funds.id NULL  -- si beneficiary_type = fund
 amount_handed       DECIMAL(15,2) NULL
 handed_at           DATETIME NULL
 handed_notes        TEXT NULL
@@ -551,6 +555,8 @@ status          ENUM('pending','approved','rejected','cancelled','disbursed') DE
 approved_by     BIGINT UNSIGNED FK → users.id NULL
 approved_at     DATETIME NULL
 disbursed_at    DATETIME NULL
+payment_method  VARCHAR(50) NULL          -- mode de versement : cash | mtn_momo | orange_money | transfer
+recorded_by     BIGINT UNSIGNED NULL FK → users.id  -- trésorier/président ayant enregistré le versement
 created_at      DATETIME
 updated_at      DATETIME
 ```

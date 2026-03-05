@@ -50,6 +50,18 @@
 - [x] Paiement : MTN MoMo + Orange Money + job `CheckSubscriptions`
 - [x] Intégration dans : DATABASE.md, BUSINESS_RULES.md, MODULES.md, API.md, ARCHITECTURE.md, ROADMAP.md, TODO.md
 
+## Sprint 1 — Corrections solidarité (2026-03-05)
+
+### Traçabilité & renflouement caisse de solidarité
+- [x] `solidarity_requests` : ajout `payment_method` (cash|mtn_momo|orange_money|transfer) + `recorded_by FK → users.id` — champs obligatoires au moment du disburse
+- [x] `fundraisings.beneficiary_type` : ENUM étendu à `'member'|'external'|'fund'` + `fund_id FK → solidarity_funds.id` — permet de collecter pour renflouer la caisse
+- [x] `BUSINESS_RULES.md` : section "Traçabilité des versements" + section "Renflouement" + tableau types bénéficiaire + logique `creditFundFromFundraising()`
+- [x] `MODULES.md` : SolidarityService + FundraisingService mis à jour (creditFundFromFundraising, payment_method, recorded_by)
+- [x] `API.md` : `/disburse` note payment_method requis ; `/hand-over` note 3 types bénéficiaire
+- [x] `DATABASE.md` : schémas `solidarity_requests` + `fundraisings` mis à jour
+
+---
+
 ## Phase 2 — Audits & corrections documentation (2026-03-03 → 2026-03-04)
 
 ### Modèle de données (DATABASE.md)

@@ -392,6 +392,19 @@ pending → rejected
 - Workflow complet : `pending → approved → disbursed` | `pending → rejected` | `pending → cancelled`
 - `cancelled` (par le membre) est distinct de `rejected` (par le treasurer) — les deux sont conservés dans l'historique
 
+### Traçabilité des versements
+- À la transition `approved → disbursed`, le trésorier ou président doit renseigner :
+  - `payment_method` : mode de remise (cash, mtn_momo, orange_money, transfer)
+  - `recorded_by` : identifiant de la personne ayant enregistré le versement
+- Ces deux champs sont **obligatoires** au moment du disburse (validés par `SolidarityService`)
+- Traçabilité complète : chaque aide est reliée au membre bénéficiaire, au montant, à la raison, au mode de paiement et à la personne ayant enregistré
+
+### Renflouement de la caisse
+- **Cotisations périodiques** : montant mensuel configuré dans `association_settings.solidarity_monthly_amount`
+- **Main levée de renflouement** : une main levée peut cibler la caisse (`beneficiary_type = 'fund'`) pour la renflouer après un décaissement important
+  - Les fonds collectés sont versés directement dans `solidarity_funds.balance` lors du `handed_over`
+  - `SolidarityService::creditFundFromFundraising()` est appelé par `FundraisingService` à cette étape
+
 ## Main levée (collecte ponctuelle)
 
 - Initiée par le **président** ou le **trésorier** de l'association
@@ -402,18 +415,27 @@ pending → rejected
 - Les membres contribuent **volontairement** (aucune obligation)
 - La main levée reste **archivée et consultable** indéfiniment après clôture
 
+### Types de bénéficiaire (`beneficiary_type`)
+| Type | Description | Champ requis |
+|------|-------------|-------------|
+| `member` | Aide à un membre identifié | `beneficiary_id` (FK users) |
+| `external` | Bénéficiaire hors association | `beneficiary_name` (texte) |
+| `fund` | Renflouement de la caisse de solidarité | `fund_id` (FK solidarity_funds) |
+
 ### Statuts d'une main levée
 ```
 open → closed → handed_over
 ```
 - `open` : collecte en cours, contributions acceptées
 - `closed` : collecte terminée, fonds consolidés
-- `handed_over` : fonds remis au bénéficiaire, dossier archivé
+- `handed_over` : fonds remis/versés, dossier archivé
 
-### À la remise au bénéficiaire
+### À la remise (`handed_over`)
 - La transition `closed → handed_over` est **réservée au président** uniquement
-- Enregistrement obligatoire : bénéficiaire (membre ou externe), montant remis, date, notes justificatives
-- Si bénéficiaire externe : nom et motif obligatoires
+- Enregistrement obligatoire : bénéficiaire, montant remis, date, notes justificatives
+- **Si `beneficiary_type = member`** : `beneficiary_id` requis, versement manuel tracé
+- **Si `beneficiary_type = external`** : `beneficiary_name` requis
+- **Si `beneficiary_type = fund`** : `FundraisingService` appelle `SolidarityService::creditFundFromFundraising()` → `solidarity_funds.balance += amount_handed`
 - Le dossier complet (motif initial + contributions + remise) reste consultable par les membres
 
 ---

@@ -180,7 +180,7 @@ Auth : `Authorization: Bearer <access_token>` (sauf routes publiques)
 | POST | `/associations/{id}/fundraisings` | treasurer | Initier une main levée (président ou trésorier) |
 | GET  | `/associations/{id}/fundraisings/{fId}` | member | Détail + contributions |
 | PUT  | `/associations/{id}/fundraisings/{fId}/close` | president | Clôturer la collecte |
-| PUT  | `/associations/{id}/fundraisings/{fId}/hand-over` | president | Marquer remise au bénéficiaire (→ status: handed_over) |
+| PUT  | `/associations/{id}/fundraisings/{fId}/hand-over` | president | Marquer remise (→ status: handed_over) — bénéficiaire : member \| external \| fund |
 | POST | `/associations/{id}/fundraisings/{fId}/contributions` | member | Contribuer |
 | GET  | `/associations/{id}/fundraisings/{fId}/contributions` | member | Liste contributions |
 
@@ -199,7 +199,7 @@ Auth : `Authorization: Bearer <access_token>` (sauf routes publiques)
 | PUT  | `/associations/{id}/solidarity/requests/{rId}/cancel` | member* | Annuler sa propre demande (status: pending uniquement) |
 | PUT  | `/associations/{id}/solidarity/requests/{rId}/approve` | treasurer | Approuver |
 | PUT  | `/associations/{id}/solidarity/requests/{rId}/reject` | treasurer | Rejeter |
-| PUT  | `/associations/{id}/solidarity/requests/{rId}/disburse` | treasurer | Marquer versé |
+| PUT  | `/associations/{id}/solidarity/requests/{rId}/disburse` | treasurer | Marquer versé (body: payment_method requis — recorded_by extrait du JWT) |
 
 ---
 
