@@ -18,17 +18,19 @@
 - [x] Configurer autoload des modules dans `app/Config/Autoload.php`
 - [x] Configurer routes globales dans `app/Config/Routes.php`
 
-### 🔴 PROCHAINE TÂCHE — Migrations Phase 1 (database-architect → php-pro)
-**Ordre obligatoire (dépendances FK) :**
-- [ ] Migration `plans` (plans SaaS : free/starter/pro/federation)
-- [ ] Migration `associations` (+ champs identité : slogan, phone, address, bp, tax_number, auth_number)
-- [ ] Migration `association_settings` (+ colonnes label, is_custom)
-- [ ] Migration `subscriptions` (FK → plans + associations)
-- [ ] Migration `users` (phone NOT NULL UNIQUE, email NULL, is_super_admin, phone_verified_at, email_verified_at)
-- [ ] Migration `password_resets`
-- [ ] Migration `refresh_tokens` (token_hash, jti, expires_at, revoked_at)
-- [ ] Migration `association_members` (effective_role inclut `censor`, left_at)
-- [ ] Migration `invitations` (phone NULL, email NULL — contrainte phone OR email au niveau Service)
+### ✅ Migrations Phase 1 — TERMINÉES (2026-03-05) commit ac8fcd9
+**Ordre corrigé (dépendances FK) :**
+- [x] Migration `plans`
+- [x] Migration `users` (avant associations — FK reviewed_by/created_by)
+- [x] Migration `associations` (country CHAR(2), currency CHAR(3))
+- [x] Migration `association_settings` (label, is_custom, UNIQUE assoc+key)
+- [x] Migration `subscriptions` (FK → plans RESTRICT, UNIQUE association_id)
+- [x] Migration `password_resets` (sans FK — anti-énumération)
+- [x] Migration `refresh_tokens` (token_hash, jti, index composite user+revoked)
+- [x] Migration `association_members` (effective_role inclut censor, joined_at NOT NULL)
+- [x] Migration `invitations` (phone OR email, FK invited_by RESTRICT)
+
+### 🔴 PROCHAINE TÂCHE — Module Auth (php-pro)
 
 ### Module Auth
 **Code :**

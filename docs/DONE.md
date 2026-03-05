@@ -1,5 +1,16 @@
 # DONE — Décisions et documentation terminées
 
+## Sprint 1 — Migrations Phase 1 (2026-03-05) commit ac8fcd9
+
+### 9 migrations tables fondations — TERMINÉES
+- [x] Ordre FK corrigé : `plans` → `users` → `associations` → `association_settings` → `subscriptions` → `password_resets` → `refresh_tokens` → `association_members` → `invitations` (TODO.md avait `associations` avant `users` — corrigé)
+- [x] `database-architect` : validation schémas + ON DELETE/UPDATE + index composites + corrections (country CHAR(2), currency CHAR(3), joined_at NOT NULL, expires_at NOT NULL)
+- [x] `php-pro` : 9 fichiers `app/Database/Migrations/2026-03-05-00000X_CreateXxxTable.php`, CI4 DbForge, InnoDB/utf8mb4/utf8mb4_unicode_ci
+- [x] `code-reviewer` : APPROVED — PSR-12, types, FK, index, down() tous conformes
+- [x] `DATABASE.md` : `country CHAR(2)` + `currency CHAR(3)` (conformité ISO 3166-1 / ISO 4217)
+
+---
+
 ## Sprint 1 — Architecture reconduction prêts (2026-03-05)
 
 ### Reconduction = nouvel enregistrement (décision tracabilité)
