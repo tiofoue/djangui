@@ -331,13 +331,40 @@ Exemple : caisse = 210 000 XAF, 21 parts totales
 - Le montant maximum empruntable peut être limité par les settings de l'association
 - Un membre peut utiliser comme garantie : ses parts tontine non perçues, son épargne, un garant
 
+### Corps de la demande (DTO — POST /loans)
+Le membre soumet en une seule requête :
+```json
+{
+  "amount": 100000,
+  "duration_months": 6,
+  "purpose": "Achat matériel",
+  "guarantees": [
+    { "type": "member", "guarantor_user_id": 42 },
+    { "type": "tontine_share", "tontine_member_id": 7 }
+  ]
+}
+```
+- `interest_rate` et `interest_type` sont **fixés automatiquement par `LoanService`** depuis les settings de l'association (`loan_max_rate`, `loan_default_interest_type`) — le membre ne les choisit pas
+- Les garanties sont soumises **en même temps** que la demande (pas d'appel séparé)
+- `LoanService` crée le loan + toutes les `loan_guarantees` en cascade dans la même transaction
+
 ### Garanties
-- **Garant membre** : le garant doit être membre actif de la même association
-  - Le garant doit confirmer explicitement son engagement
+- **Garant membre** (`type = member`) :
+  - Le garant doit être membre actif de la même association
+  - La garantie est créée avec `status = pending` à la soumission de la demande
+  - Le garant doit **confirmer explicitement** via `PUT /loans/{lId}/guarantees/{gId}/confirm` → `status = confirmed`
+  - Le trésorier peut approuver le prêt avant ou après confirmation (selon `loan_requires_guarantor` dans les settings)
   - Si l'emprunteur est en défaut, le garant est notifié et peut être sollicité
-- **Épargne** : les fonds épargne du membre sont bloqués jusqu'à remboursement complet
-- **Part tontine non perçue** : la valeur des tours non encore reçus est mise en garantie
-- **Approbation admin** : pas de garantie financière, juste accord du président/trésorier
+- **Épargne** (`type = savings`) : les fonds épargne du membre sont bloqués jusqu'à remboursement complet — `status = confirmed` automatiquement
+- **Part tontine non perçue** (`type = tontine_share`) : valeur des tours non encore reçus mise en garantie — `status = confirmed` automatiquement
+- **Approbation admin** (`type = admin_approval`) : pas de garantie financière, juste accord du président/trésorier — `status = confirmed` à l'approbation du prêt
+
+### Cycle de vie des garanties
+```
+[type=member]        pending → confirmed (par le garant) → released (remboursement complet)
+                     pending → released  (si prêt rejeté)
+[type=savings/tontine_share/admin_approval]  confirmed dès création → released
+```
 
 ### Calcul intérêts simples
 ```
@@ -359,13 +386,24 @@ Exemple : 100 000 XAF à 12%/an sur 6 mois
 
 ### Workflow approbation
 ```
-pending → approved → active → completed
-pending → rejected
+member soumet POST /loans + guarantees[]
+  ├── guarantees type=member → status=pending (notification SMS/email au garant)
+  └── guarantees autres types → status=confirmed automatiquement
+
+[garant] PUT /guarantees/{gId}/confirm → status=confirmed
+
+[treasurer] PUT /loans/approve  → status=approved
+[treasurer] PUT /loans/disburse → status=active (disbursed_at, génère échéancier)
+[treasurer] PUT /loans/reject   → status=rejected (toutes garanties → released)
+[auto job]  CheckLoanDefaults   → status=defaulted
+[treasurer] POST /repayments    → status=active → completed si total_repaid >= total_due
 ```
 - Le trésorier ou le président peut approuver/rejeter
 - `approved` : décision prise, fonds pas encore remis
 - `active` : fonds décaissés (`disbursed_at` rempli), échéancier généré à ce moment
 - La date de première échéance = 1 mois après `disbursed_at`
+- À l'approbation : garanties `admin_approval` passent à `confirmed`
+- Au remboursement complet : toutes les garanties passent à `released`
 
 ### Remboursements
 - Chaque versement est imputé d'abord sur les pénalités, puis sur les intérêts, puis sur le capital

@@ -429,7 +429,7 @@ id              BIGINT UNSIGNED PK AUTO_INCREMENT
 association_id  BIGINT UNSIGNED FK → associations.id
 member_id       BIGINT UNSIGNED FK → users.id
 amount          DECIMAL(15,2) NOT NULL
-interest_rate   DECIMAL(5,4) NOT NULL   -- ex: 0.1000 = 10%
+interest_rate   DECIMAL(5,4) NOT NULL   -- ex: 0.1000 = 10% — fixé par LoanService depuis association_settings(loan_max_rate), non saisi par le membre
 interest_type   ENUM('simple','compound') NOT NULL
 duration_months INT NOT NULL
 purpose         TEXT NULL

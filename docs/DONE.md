@@ -50,6 +50,19 @@
 - [x] Paiement : MTN MoMo + Orange Money + job `CheckSubscriptions`
 - [x] Intégration dans : DATABASE.md, BUSINESS_RULES.md, MODULES.md, API.md, ARCHITECTURE.md, ROADMAP.md, TODO.md
 
+## Sprint 1 — Processus demande de prêt (2026-03-05)
+
+### Clarifications flux emprunt
+- [x] `BUSINESS_RULES.md` : section "Corps de la demande (DTO)" — body POST /loans documenté (amount, duration_months, purpose, guarantees[])
+- [x] `BUSINESS_RULES.md` : `interest_rate` fixé par `LoanService` depuis `association_settings.loan_max_rate` (pas saisi par le membre)
+- [x] `BUSINESS_RULES.md` : cycle de vie garanties `pending → confirmed → released` documenté
+- [x] `BUSINESS_RULES.md` : diagramme workflow prêt mis à jour (incluant étape confirmation garant)
+- [x] `MODULES.md` : `LoanController` — endpoint confirmation garant ajouté ; `LoanService` — création garanties en cascade + taux depuis settings
+- [x] `API.md` : endpoint `PUT /loans/{lId}/guarantees/{gId}/confirm` ajouté ; note corps POST /loans (DTO + interest_rate auto + garanties cascade)
+- [x] `DATABASE.md` : `loans.interest_rate` — note "fixé par LoanService depuis association_settings(loan_max_rate)"
+
+---
+
 ## Sprint 1 — Corrections solidarité (2026-03-05)
 
 ### Traçabilité & renflouement caisse de solidarité

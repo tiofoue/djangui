@@ -153,7 +153,7 @@ Auth : `Authorization: Bearer <access_token>` (sauf routes publiques)
 | Méthode | Endpoint | Rôle min | Description |
 |---------|----------|----------|-------------|
 | GET  | `/associations/{id}/loans` | treasurer | Liste emprunts |
-| POST | `/associations/{id}/loans` | member | Demander un emprunt |
+| POST | `/associations/{id}/loans` | member | Demander un emprunt (body : `amount`, `duration_months`, `purpose`, `guarantees[]` — voir ci-dessous) |
 | GET  | `/associations/{id}/loans/{lId}` | member* | Détail emprunt |
 | PUT  | `/associations/{id}/loans/{lId}/approve` | treasurer | Approuver (→ status: approved) |
 | PUT  | `/associations/{id}/loans/{lId}/disburse` | treasurer | Décaisser les fonds (→ status: active, remplit disbursed_at, génère échéancier) |
@@ -161,8 +161,26 @@ Auth : `Authorization: Bearer <access_token>` (sauf routes publiques)
 | GET  | `/associations/{id}/loans/{lId}/schedule` | member* | Échéancier |
 | GET  | `/associations/{id}/loans/{lId}/repayments` | member* | Historique paiements |
 | POST | `/associations/{id}/loans/{lId}/repayments` | treasurer | Enregistrer remboursement |
+| GET  | `/associations/{id}/loans/{lId}/guarantees` | member* | Liste des garanties |
+| PUT  | `/associations/{id}/loans/{lId}/guarantees/{gId}/confirm` | member* | Confirmer sa garantie (garant uniquement — status: pending → confirmed) |
 
 *membre peut voir seulement ses propres emprunts
+
+> **Corps POST /loans :**
+> ```json
+> {
+>   "amount": 100000,
+>   "duration_months": 6,
+>   "purpose": "Achat matériel",
+>   "guarantees": [
+>     { "type": "member", "guarantor_user_id": 42, "amount_pledged": 50000 },
+>     { "type": "tontine_share", "tontine_member_id": 7, "amount_pledged": 50000 }
+>   ]
+> }
+> ```
+> Le champ `interest_rate` n'est **pas fourni par le membre** — il est fixé automatiquement par `LoanService` depuis `association_settings.loan_max_rate`.
+> Les garanties sont créées en cascade au même moment que la demande (status: `pending`).
+> Chaque garant de type `member` reçoit une notification pour confirmer via `PUT .../guarantees/{gId}/confirm`.
 
 > **moderator*** : vérifié par `TontineModeratorFilter` — accès accordé si l'utilisateur est le modérateur désigné de la tontine (`tontines.moderateur_id`), ou s'il est `treasurer` ou `president` de l'association (fallback).
 

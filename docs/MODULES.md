@@ -260,12 +260,12 @@ draft → open (vote actif) → closed (dépouillement + publication résultats)
 **Responsabilité** : Gestion des emprunts entre l'association et ses membres.
 
 ### Composants
-- `LoanController` — CRUD demandes, approbation, rejet
+- `LoanController` — CRUD demandes, approbation, rejet, confirmation garant
 - `RepaymentController` — Enregistrement remboursements
 - `LoanModel` — CRUD loans
-- `LoanGuaranteeModel` — Garanties associées
+- `LoanGuaranteeModel` — Garanties associées (création en cascade avec le loan)
 - `LoanRepaymentModel` — Échéancier et paiements
-- `LoanService` — Workflow approbation, vérification garanties
+- `LoanService` — Workflow approbation, création garanties en cascade, taux depuis settings, génération échéancier
 - `InterestCalculator` — Calcul intérêts simple/composé, génération échéancier
 
 ### Calcul d'intérêts
