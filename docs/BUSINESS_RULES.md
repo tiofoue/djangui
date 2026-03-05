@@ -533,32 +533,45 @@ member soumet POST /loans + guarantees[]
 - Exemple : 400 000 XAF × 7% = 28 000 XAF d'intérêts pour une période de 3 mois
 
 ### Reconduction de prêt
-À l'échéance, **deux cas** selon la situation du membre :
+À l'échéance, **deux cas** selon la situation du membre — dans les deux cas, un **nouvel enregistrement `loans`** est créé pour garantir la traçabilité complète :
 
-**CAS 1 — Reconduction choisie** (membre rembourse et veut continuer) :
-1. Le membre rembourse intégralement : capital + intérêts (enregistré via `POST /repayments`)
-2. Le membre re-demande un prêt immédiatement : `new_amount = old_amount × (1 + rate)` (intérêts capitalisés dans le nouveau principal)
-3. Dans la DB : `UPDATE loans SET amount = amount × (1 + interest_rate), renewal_count++, total_due = recalculé, due_date = new_due_date (≤ cycle.end_date)`
-4. `original_amount` reste inchangé (trace du montant initial)
+**CAS 1 — Reconduction choisie** (`source = 'renewal_cap'`) :
+Le membre rembourse intégralement (capital + intérêts) et veut continuer à emprunter :
+1. `POST /repayments` → remboursement complet du prêt courant → `status = completed`
+2. `LoanService::renew()` crée un **nouveau** `loans` record :
+   - `amount = old_amount × (1 + rate)` — intérêts capitalisés dans le nouveau principal
+   - `parent_loan_id = old_loan_id`
+   - `source = 'renewal_cap'`
+   - `original_amount = new_amount`
+   - `due_date ≤ cycle.end_date`
+   - `renewal_count = old.renewal_count + 1`
 
 ```
-Exemple (7%/trimestre, cycle Déc→Nov) :
-  Déc : emprunt 400 000 → intérêts 28 000
-  Mars : rembourse 428 000 → re-emprunte 428 000 (= 400 000 × 1.07)
-  Juin : rembourse 457 960 → re-emprunte 457 960 (= 428 000 × 1.07)
-  Sept : rembourse 490 017 → re-emprunte 490 017 (= 457 960 × 1.07)
-  Nov (fin de cycle) : rembourse 524 318 → SANS reconduction possible
+Exemple Hermann (7%/trimestre, cycle Déc→Nov) :
+  loan #1 : 400 000 XAF  → remboursé en mars  → status=completed
+  loan #2 : 428 000 XAF  → remboursé en juin  → status=completed  (parent=#1)
+  loan #3 : 457 960 XAF  → remboursé en sept  → status=completed  (parent=#2)
+  loan #4 : 490 017 XAF  → dû en novembre    → status=active      (parent=#3)
+  (fin de cycle → remboursement obligatoire, pas de loan #5)
 ```
 
-**CAS 2 — Reconduction forcée** (membre ne peut pas rembourser à terme) :
-- `LoanService` calcule : `solde_restant = total_due - total_repaid`
-- `UPDATE loans SET amount = solde_restant, renewal_count++, due_date = new_due_date (≤ cycle.end_date)`
-- Notifié au membre + trésorier ; mis en défaut (`defaulted`) si `due_date = cycle.end_date` et toujours impayé
+**CAS 2 — Reconduction forcée** (`source = 'renewal_forced'`) :
+Le membre ne peut pas rembourser à l'échéance :
+1. `LoanService::forceRenew()` crée un **nouveau** `loans` record :
+   - `amount = old_loan.total_due - old_loan.total_repaid` (solde restant)
+   - `parent_loan_id = old_loan_id`
+   - `source = 'renewal_forced'`
+   - `due_date ≤ cycle.end_date`
+   - `renewal_count = old.renewal_count + 1`
+2. L'ancien prêt passe en `status = completed` (soldé par la reconduction)
+3. Notification au membre + trésorier
+4. Si `new_due_date = cycle.end_date` et prêt non soldé à terme → `status = defaulted` + blocage clôture cycle
 
 **Dans les deux cas :**
-- `original_amount` conservé (trace du montant initial)
-- Nouveau terme : `due_date + duration_months initialement accordée`, plafonné à `cycle.end_date`
-- Si `new_due_date > cycle.end_date` → `new_due_date = cycle.end_date` (remboursement obligatoire en fin de cycle)
+- Le prêt précédent est marqué `completed` (la dette est transférée sur le nouveau prêt)
+- `original_amount` = montant au décaissement de CE prêt (pas du prêt racine)
+- Traçabilité complète : suivre la chaîne `parent_loan_id` → `NULL` pour voir tout l'historique
+- La fin de cycle (`cycle.end_date`) est la limite absolue — aucune reconduction possible au-delà
 
 ---
 

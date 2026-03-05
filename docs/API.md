@@ -178,11 +178,12 @@ Auth : `Authorization: Bearer <access_token>` (sauf routes publiques)
 | GET  | `/associations/{id}/loans/{lId}/repayments` | member* | Historique paiements |
 | POST | `/associations/{id}/loans/{lId}/repayments` | treasurer | Enregistrer remboursement |
 | GET  | `/associations/{id}/loans/{lId}/guarantees` | member* | Liste des garanties |
+| GET  | `/associations/{id}/loans/{lId}/chain` | member* | Chaîne complète de reconduction (prêt racine → reconductions successives) |
 | PUT  | `/associations/{id}/loans/{lId}/guarantees/{gId}/confirm` | member* | Confirmer sa garantie (garant uniquement — status: pending → confirmed) |
 
 *membre peut voir seulement ses propres emprunts
 
-> **Contraintes cycle :** Un prêt ne peut être créé que si un cycle est `active`. La `due_date` est plafonnée à `cycle.end_date`. Le taux (`interest_rate`) s'applique **par période de prêt** (pas annualisé). À l'échéance : reconduction CAS 1 = capitalisation (new_amount = old × (1+rate)) si remboursement complet + re-emprunt ; CAS 2 = solde restant si impayé forcé.
+> **Contraintes cycle & reconduction :** Un prêt ne peut être créé que si un cycle est `active`. La `due_date` est plafonnée à `cycle.end_date`. Taux par période (non annualisé). À l'échéance : `LoanService` crée un **nouveau** `loans` record — CAS 1 (`renewal_cap`) : amount = old × (1+rate) si remboursement complet ; CAS 2 (`renewal_forced`) : amount = solde restant. Le prêt précédent passe en `completed`. Traçabilité via chaîne `parent_loan_id`.
 
 > **Corps POST /loans :**
 > ```json

@@ -462,12 +462,17 @@ id              BIGINT UNSIGNED PK AUTO_INCREMENT
 association_id  BIGINT UNSIGNED FK → associations.id
 member_id       BIGINT UNSIGNED FK → users.id
 cycle_id        BIGINT UNSIGNED FK → association_cycles.id   -- cycle auquel appartient ce prêt
+parent_loan_id  BIGINT UNSIGNED NULL FK → loans.id           -- prêt précédent dans la chaîne (NULL si premier emprunt)
+source          ENUM('new','renewal_cap','renewal_forced') DEFAULT 'new'
+-- new              : nouvelle demande membre
+-- renewal_cap      : reconduction CAS 1 — remboursement complet + re-emprunt (intérêts capitalisés : new_amount = old × (1+rate))
+-- renewal_forced   : reconduction CAS 2 — solde restant impayé reconduit
 amount          DECIMAL(15,2) NOT NULL
 interest_rate   DECIMAL(5,4) NOT NULL   -- taux par PÉRIODE de prêt (ex: 0.0700 = 7%/trimestre, PAS annualisé) — fixé depuis association_settings(loan_max_rate)
 interest_type   ENUM('simple','compound') NOT NULL
 duration_months INT NOT NULL
-original_amount DECIMAL(15,2) NOT NULL   -- montant initial du prêt (conservé lors des reconductions)
-renewal_count   INT UNSIGNED DEFAULT 0   -- nombre de fois recondu
+original_amount DECIMAL(15,2) NOT NULL   -- montant au moment du décaissement de CE prêt spécifique
+renewal_count   INT UNSIGNED DEFAULT 0   -- profondeur dans la chaîne (cache : = COUNT(ancestors via parent_loan_id))
 purpose         TEXT NULL
 status          ENUM('pending','approved','rejected','active','completed','defaulted')
 approved_by     BIGINT UNSIGNED FK → users.id NULL
@@ -513,6 +518,8 @@ paid_at         DATETIME NULL
 recorded_by     BIGINT UNSIGNED FK → users.id NULL
 created_at      DATETIME
 ```
+
+> **Chaîne de reconduction :** Un prêt reconduit crée un **nouvel enregistrement** `loans` avec `parent_loan_id` pointant vers le précédent. Le prêt précédent passe en `status = completed`. `original_amount` = montant au décaissement de ce prêt spécifique. Pour retrouver l'historique complet : suivre la chaîne `parent_loan_id` jusqu'à `NULL`. `renewal_count` = profondeur dans cette chaîne (cache).
 
 ---
 

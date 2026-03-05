@@ -269,7 +269,7 @@ draft → open (vote actif) → closed (dépouillement + publication résultats)
 - `LoanModel` — CRUD loans
 - `LoanGuaranteeModel` — Garanties associées (création en cascade avec le loan)
 - `LoanRepaymentModel` — Échéancier et paiements
-- `LoanService` — Workflow approbation, création garanties en cascade, taux par période depuis settings, génération échéancier, reconduction par capitalisation (CAS 1 : amount × (1+rate)) ou sur solde restant (CAS 2 : impayé forcé), contrainte due_date ≤ cycle.end_date
+- `LoanService` — Workflow approbation, création garanties en cascade, taux par période depuis settings, génération échéancier, `renew()` CAS 1 (crée nouveau loan, source=renewal_cap, amount×(1+rate)), `forceRenew()` CAS 2 (crée nouveau loan, source=renewal_forced, solde restant), contrainte due_date ≤ cycle.end_date
 - `InterestCalculator` — Calcul intérêts simple/composé, génération échéancier
 
 ### Calcul d'intérêts
@@ -302,8 +302,8 @@ treasurer → PUT  /loans/approve   (status: approved)
 treasurer → PUT  /loans/disburse  (status: active, disbursed_at = now(), génère échéancier)
 treasurer → PUT  /loans/reject    (status: rejected)
 treasurer → POST /repayments      (status: active → completed si soldé)
-→ [auto job] CheckLoanRenewals : reconduction sur solde restant si non soldé à due_date
-→ [treasurer/auto] clôture cycle : tous prêts doivent être completed avant closing → closed
+→ [auto job] CheckLoanRenewals : crée nouveau loan (renewal_cap ou renewal_forced) si non soldé à due_date
+→ [treasurer/auto] clôture cycle : tous les loans actifs doivent être completed (status) avant closing → closed
 ```
 
 ---

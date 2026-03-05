@@ -1,5 +1,19 @@
 # DONE — Décisions et documentation terminées
 
+## Sprint 1 — Architecture reconduction prêts (2026-03-05)
+
+### Reconduction = nouvel enregistrement (décision tracabilité)
+- [x] Décision : reconduction crée un **nouveau** `loans` record (pas UPDATE) pour traçabilité financière complète
+- [x] `loans` : ajout `parent_loan_id FK → loans.id` + `source ENUM('new','renewal_cap','renewal_forced')`
+- [x] `original_amount` = montant au décaissement de ce prêt spécifique (pas du prêt racine)
+- [x] `renewal_count` = cache de profondeur dans la chaîne (recalculable via parent_loan_id)
+- [x] `BUSINESS_RULES.md` : section Reconduction réécrite — 2 cas documentés avec création nouveau record, exemple Hermann complet (loan #1→#4), chaîne parent_loan_id
+- [x] `DATABASE.md` : parent_loan_id + source ajoutés à loans, note explicative chaîne
+- [x] `MODULES.md` : LoanService::renew() + forceRenew() documentés
+- [x] `API.md` : GET /loans/{lId}/chain ajouté, note contrainte mise à jour
+
+---
+
 ## Sprint 1 — Corrections épargne-crédit (analyse fichier réel AJRD 2025) (2026-03-05)
 
 ### Corrections issues de l'analyse du fichier Excel réel (association AJRD)
