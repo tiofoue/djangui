@@ -141,6 +141,7 @@ Exemple : `"Num de Compte"` → key=`num_de_compte`, label=`"Num de Compte"`
 - `rotation_default_mode` — random | manual | bidding
 - `invitation_requires_approval` — true | false
 - `loan_default_delay_days` — nb de jours de retard avant mise en défaut automatique (défaut : 30)
+- `fonds_caisse_monthly_amount` — montant fixe de cotisation Fonds de Caisse par membre par séance (ex: 1000 XAF)
 - `savings_enabled` — true | false — active le module épargne pour l'association (défaut : false pour tontine_group)
 - `cycle_start_month` — mois de démarrage de l'exercice (1=janvier, défaut : 1)
 - `loan_interest_distribution` — pourcentage des intérêts reversés aux épargnants (défaut : 1.0 = 100%)
@@ -462,7 +463,7 @@ association_id  BIGINT UNSIGNED FK → associations.id
 member_id       BIGINT UNSIGNED FK → users.id
 cycle_id        BIGINT UNSIGNED FK → association_cycles.id   -- cycle auquel appartient ce prêt
 amount          DECIMAL(15,2) NOT NULL
-interest_rate   DECIMAL(5,4) NOT NULL   -- ex: 0.1000 = 10% — fixé par LoanService depuis association_settings(loan_max_rate), non saisi par le membre
+interest_rate   DECIMAL(5,4) NOT NULL   -- taux par PÉRIODE de prêt (ex: 0.0700 = 7%/trimestre, PAS annualisé) — fixé depuis association_settings(loan_max_rate)
 interest_type   ENUM('simple','compound') NOT NULL
 duration_months INT NOT NULL
 original_amount DECIMAL(15,2) NOT NULL   -- montant initial du prêt (conservé lors des reconductions)
@@ -534,10 +535,11 @@ UNIQUE(cycle_id, member_id)
 id                  BIGINT UNSIGNED PK AUTO_INCREMENT
 account_id          BIGINT UNSIGNED FK → savings_accounts.id
 association_id      BIGINT UNSIGNED FK → associations.id
-type                ENUM('deposit','withdrawal','interest_payout') NOT NULL
--- deposit          : dépôt d'épargne (séance courante)
+type                ENUM('deposit','withdrawal','interest_payout','fonds_caisse') NOT NULL
+-- deposit          : dépôt d'épargne variable (séance courante)
 -- withdrawal       : retrait capital en fin de cycle
 -- interest_payout  : versement de la part d'intérêts en fin de cycle
+-- fonds_caisse     : cotisation mensuelle fixe (frais de fonctionnement, non inclus pro-rata intérêts)
 amount              DECIMAL(15,2) NOT NULL
 balance_after       DECIMAL(15,2) NOT NULL
 session_date        DATE NOT NULL              -- date de la séance ou opération
@@ -555,7 +557,7 @@ account_id      BIGINT UNSIGNED FK → savings_accounts.id
 association_id  BIGINT UNSIGNED FK → associations.id
 cycle_id        BIGINT UNSIGNED FK → association_cycles.id
 snapshot_date   DATE NOT NULL
-balance         DECIMAL(15,2) NOT NULL    -- solde épargne du membre à cette date
+balance         DECIMAL(15,2) NOT NULL    -- solde épargne CUMULATIF du membre à cette date (Σ dépôts depuis début cycle + report cycle précédent)
 loans_active    TINYINT(1) DEFAULT 0      -- y avait-il au moins un prêt actif dans l'association à cette date ?
 created_at      DATETIME
 UNIQUE(account_id, snapshot_date)

@@ -269,7 +269,7 @@ draft → open (vote actif) → closed (dépouillement + publication résultats)
 - `LoanModel` — CRUD loans
 - `LoanGuaranteeModel` — Garanties associées (création en cascade avec le loan)
 - `LoanRepaymentModel` — Échéancier et paiements
-- `LoanService` — Workflow approbation, création garanties en cascade, taux depuis settings, génération échéancier, reconduction sur solde restant (CheckLoanRenewals), contrainte due_date ≤ cycle.end_date
+- `LoanService` — Workflow approbation, création garanties en cascade, taux par période depuis settings, génération échéancier, reconduction par capitalisation (CAS 1 : amount × (1+rate)) ou sur solde restant (CAS 2 : impayé forcé), contrainte due_date ≤ cycle.end_date
 - `InterestCalculator` — Calcul intérêts simple/composé, génération échéancier
 
 ### Calcul d'intérêts
@@ -321,16 +321,17 @@ treasurer → POST /repayments      (status: active → completed si soldé)
 - `SavingsTransactionModel` — Historique dépôts / retraits / versements intérêts
 - `SavingsSnapshotModel` — Snapshots d'avoir par séance
 - `SavingsPoolEntryModel` — Apports externes (savings_pool_entries)
-- `SavingsService` — Logique dépôt, snapshot, calcul pro-rata, distribution intérêts à la clôture
+- `SavingsService` — Logique dépôt, fonds_caisse, snapshot (solde cumulatif), calcul pro-rata, distribution intérêts à la clôture
 - `InterestDistributionService` — Calcul pro-rata intérêts + génération des transactions `interest_payout`
 
 ### Flux principal
 ```
-1. Membre dépose → SavingsService::deposit() → savings_transactions(deposit)
-2. À chaque séance → SavingsService::takeSnapshot() → savings_snapshots (balance + loans_active)
+1. Membre dépose → SavingsService::deposit() → savings_transactions(type=deposit)
+   Membre verse fonds_caisse → SavingsService::recordFondsCaisse() → savings_transactions(type=fonds_caisse)
+2. À chaque séance → SavingsService::takeSnapshot() → savings_snapshots (balance=solde_cumulatif + loans_active)
 3. Fin de cycle → InterestDistributionService::distribute() :
-     a. Calcul score par membre (Σ balance sur séances loans_active = 1)
-     b. pro_rata = score_membre / score_total × total_intérêts_cycle
+     a. Calcul score par membre = Σ(balance_cumulatif aux séances où loans_active = 1)
+     b. pro_rata = score_membre / score_total × total_intérêts_cycle × loan_interest_distribution
      c. savings_accounts.interest_earned = pro_rata
      d. savings_transactions(interest_payout) + savings_transactions(withdrawal)
      e. savings_accounts.status = 'closed'

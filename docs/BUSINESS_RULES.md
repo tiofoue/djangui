@@ -123,8 +123,10 @@ Le trésorier consulte ce solde avant d'approuver tout nouvel emprunt.
 
 ### Snapshot d'avoir par séance
 À chaque séance d'assemblée, un snapshot est enregistré pour chaque compte épargne :
-- `balance` = solde épargne du membre à ce moment précis
+- `balance` = **solde cumulatif** du membre à cette date (Σ tous les dépôts depuis début de cycle + solde initial report du cycle précédent)
 - `loans_active` = `1` si au moins un prêt est actif dans l'association à cette date, `0` sinon
+
+> Le solde cumulatif (et non le dépôt mensuel seul) est la base du pro-rata : un membre qui épargne tôt contribue davantage sur le long terme.
 
 ### Formule de distribution des intérêts (pro-rata)
 ```
@@ -151,15 +153,22 @@ Un membre déposant une somme importante **après** la clôture de tous les prê
 Score A = 120 000 | Score B = 0 → **A reçoit 100 % des intérêts**
 
 **Cas 2 — Prêt long (12 mois, tout le cycle)**
-| Séance | Avoir A | Avoir B | Prêts actifs | Comptabilisé |
-|--------|---------|---------|--------------|--------------|
+| Séance | Solde cumulatif A | Solde cumulatif B | Prêts actifs | Comptabilisé |
+|--------|-------------------|-------------------|--------------|--------------|
 | M1 | 20 000 | 0 | ✅ | ✅ |
-| M2 | 40 000 | 0 | ✅ | ✅ |
-| M3 | 60 000 | 0 | ✅ | ✅ |
-| M4→M12 | 60 000 | 90 000 | ✅ | ✅ |
+| M2 | 60 000 | 0 | ✅ | ✅ |
+| M3 | 120 000 | 0 | ✅ | ✅ |
+| M4→M12 | 180 000…660 000 | 90 000…810 000 | ✅ | ✅ |
 
-Score A = 20k+40k+60k×10 = **660 000** | Score B = 90k×9 = **810 000** | Total = 1 470 000
+Score A = 660 000 | Score B = 810 000 | Total = 1 470 000
 → **A : 44,9 %** (récompensé pour épargne précoce) | **B : 55,1 %** (contribution réelle depuis M4)
+
+### Fonds de Caisse
+- Cotisation mensuelle **fixe** versée par chaque membre actif (ex : 1 000 XAF/mois)
+- **Distinct de l'épargne variable** : tracé séparément via `savings_transactions.type = 'fonds_caisse'`
+- **Non inclus dans le calcul du pro-rata des intérêts** — réservé aux frais de fonctionnement de l'association
+- Montant configuré via `association_settings.fonds_caisse_monthly_amount`
+- Enregistré par le trésorier lors de chaque séance d'assemblée
 
 ---
 
@@ -512,29 +521,39 @@ member soumet POST /loans + guarantees[]
 - Tout versement est imputé : pénalités → intérêts → capital
 - Le remboursement anticipé total est autorisé (sans pénalité de remboursement anticipé sauf configuration contraire)
 
-### Reconduction automatique (si non soldé à l'échéance)
-Si un prêt n'est pas entièrement remboursé à sa `due_date` :
+### Taux d'intérêt — par période de prêt
+- Le `interest_rate` est défini par l'association via `association_settings.loan_max_rate`
+- Il s'applique **par période de prêt** (pas annualisé) : un prêt de 3 mois à 7% → intérêts = montant × 7%
+- Unique pour tous les membres (non négociable individuellement)
+- Exemple : 400 000 XAF × 7% = 28 000 XAF d'intérêts pour une période de 3 mois
+
+### Reconduction de prêt
+À l'échéance, **deux cas** selon la situation du membre :
+
+**CAS 1 — Reconduction choisie** (membre rembourse et veut continuer) :
+1. Le membre rembourse intégralement : capital + intérêts (enregistré via `POST /repayments`)
+2. Le membre re-demande un prêt immédiatement : `new_amount = old_amount × (1 + rate)` (intérêts capitalisés dans le nouveau principal)
+3. Dans la DB : `UPDATE loans SET amount = amount × (1 + interest_rate), renewal_count++, total_due = recalculé, due_date = new_due_date (≤ cycle.end_date)`
+4. `original_amount` reste inchangé (trace du montant initial)
 
 ```
-[auto job CheckLoanRenewals — s'exécute le lendemain de due_date]
-
-solde_restant   = total_due - total_repaid
-nouveau_terme   = due_date + durée_initiale_en_mois
-si nouveau_terme > cycle.end_date → nouveau_terme = cycle.end_date
-
-UPDATE loans
-  SET amount        = solde_restant,       -- reconduit sur le SOLDE RESTANT (pas le montant initial)
-      due_date      = nouveau_terme,
-      renewal_count = renewal_count + 1,
-      interest_rate = recalculé depuis settings (loan_max_rate),
-      total_due     = recalculé sur solde_restant + nouveaux intérêts,
-      updated_at    = now()
--- Régénère l'échéancier (loan_repayments) pour les nouvelles mensualités
--- original_amount reste inchangé (trace du montant initial)
+Exemple (7%/trimestre, cycle Déc→Nov) :
+  Déc : emprunt 400 000 → intérêts 28 000
+  Mars : rembourse 428 000 → re-emprunte 428 000 (= 400 000 × 1.07)
+  Juin : rembourse 457 960 → re-emprunte 457 960 (= 428 000 × 1.07)
+  Sept : rembourse 490 017 → re-emprunte 490 017 (= 457 960 × 1.07)
+  Nov (fin de cycle) : rembourse 524 318 → SANS reconduction possible
 ```
 
-- La reconduction est **loguée** dans `audit_logs` et **notifiée** au membre + au trésorier
-- Si `due_date = cycle.end_date` et prêt toujours non soldé → mise en défaut forcée (`status = defaulted`) + blocage de la clôture du cycle
+**CAS 2 — Reconduction forcée** (membre ne peut pas rembourser à terme) :
+- `LoanService` calcule : `solde_restant = total_due - total_repaid`
+- `UPDATE loans SET amount = solde_restant, renewal_count++, due_date = new_due_date (≤ cycle.end_date)`
+- Notifié au membre + trésorier ; mis en défaut (`defaulted`) si `due_date = cycle.end_date` et toujours impayé
+
+**Dans les deux cas :**
+- `original_amount` conservé (trace du montant initial)
+- Nouveau terme : `due_date + duration_months initialement accordée`, plafonné à `cycle.end_date`
+- Si `new_due_date > cycle.end_date` → `new_due_date = cycle.end_date` (remboursement obligatoire en fin de cycle)
 
 ---
 

@@ -182,7 +182,7 @@ Auth : `Authorization: Bearer <access_token>` (sauf routes publiques)
 
 *membre peut voir seulement ses propres emprunts
 
-> **Contraintes cycle :** Un prêt ne peut être créé que si un cycle est `active` pour l'association. La `due_date` calculée par `LoanService` est automatiquement plafonnée à `cycle.end_date`. Si le membre demande une durée excédant la fin du cycle, `LoanService` retourne une erreur 422.
+> **Contraintes cycle :** Un prêt ne peut être créé que si un cycle est `active`. La `due_date` est plafonnée à `cycle.end_date`. Le taux (`interest_rate`) s'applique **par période de prêt** (pas annualisé). À l'échéance : reconduction CAS 1 = capitalisation (new_amount = old × (1+rate)) si remboursement complet + re-emprunt ; CAS 2 = solde restant si impayé forcé.
 
 > **Corps POST /loans :**
 > ```json
@@ -218,6 +218,8 @@ Auth : `Authorization: Bearer <access_token>` (sauf routes publiques)
 | GET  | `/associations/{id}/savings/accounts` | treasurer | Liste comptes épargne du cycle actif |
 | GET  | `/associations/{id}/savings/accounts/me` | member | Mon compte épargne du cycle actif |
 | POST | `/associations/{id}/savings/deposit` | treasurer | Enregistrer un dépôt pour un membre |
+| POST | `/associations/{id}/savings/fonds-caisse` | treasurer | Enregistrer la cotisation Fonds de Caisse d'un ou plusieurs membres |
+| GET  | `/associations/{id}/savings/fonds-caisse` | treasurer | Historique Fonds de Caisse du cycle actif |
 | GET  | `/associations/{id}/savings/transactions` | treasurer | Historique transactions (tous membres) |
 | GET  | `/associations/{id}/savings/transactions/me` | member | Mes transactions épargne |
 | POST | `/associations/{id}/savings/snapshot` | treasurer | Prendre un snapshot manuel (secours) |
