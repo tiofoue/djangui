@@ -30,26 +30,17 @@
 - [x] Migration `association_members` (effective_role inclut censor, joined_at NOT NULL)
 - [x] Migration `invitations` (phone OR email, FK invited_by RESTRICT)
 
-### 🔴 PROCHAINE TÂCHE — Module Auth (php-pro)
-
-### Module Auth
+### ✅ Module Auth — TERMINÉ (2026-03-07) commit e2c023c
 **Code :**
-- [ ] `UserModel` + `UserEntity`
-- [ ] `SmsLibrary` : intégration Africa's Talking (envoi OTP)
-- [ ] `JwtLibrary` : generate, verify, blacklist Redis (access) + DB (refresh)
-- [ ] `AuthService` : register, login, login-otp, refresh, logout, reset, switch-association
-- [ ] `AuthController` : POST /auth/register (phone obligatoire, email optionnel)
-- [ ] `AuthController` : POST /auth/verify-phone (OTP SMS)
-- [ ] `AuthController` : POST /auth/resend-otp
-- [ ] `AuthController` : POST /auth/login (phone ou email + password)
-- [ ] `AuthController` : POST /auth/login/otp + /auth/login/otp/verify
-- [ ] `AuthController` : POST /auth/refresh
-- [ ] `AuthController` : POST /auth/logout
-- [ ] `AuthController` : POST /auth/forgot-password + /auth/reset-password
-- [ ] `AuthController` : GET/PUT /auth/me
-- [ ] `AuthController` : POST /auth/switch-association
-- [ ] `AuthFilter` middleware
-- [ ] Tests Auth
+- [x] `UserModel` + `UserEntity`
+- [x] `SmsLibrary` : intégration Africa's Talking (envoi OTP), hash SHA-256 Redis
+- [x] `JwtLibrary` : generate, verify, blacklist Redis (access) + DB (refresh)
+- [x] `AuthService` : register, login, login-otp, refresh, logout, reset, switch-association
+- [x] `AuthController` : 13 endpoints REST
+- [x] `AuthFilter` middleware + `AuthContext` (PHP 8.2 compat)
+- [x] Anti-énumération, rate limiting Redis login (10/15min), OTP reset SMS
+
+### 🔴 PROCHAINE TÂCHE — Module Associations (php-pro)
 
 ### Module Associations
 **Code :**

@@ -1,5 +1,21 @@
 # DONE — Décisions et documentation terminées
 
+## Sprint 1 — Module Auth (2026-03-07) commit e2c023c
+
+### Auth complet — 13 endpoints, JWT, OTP, sécurité
+- [x] `Config/Auth.php` : JWT (HS256, access 15min, refresh 7j), OTP (TTL 10min, max 5 tentatives, blocage 15min)
+- [x] `Libraries/JwtLibrary.php` : generateAccessToken + generateRefreshToken (hash SHA-256 DB) + verifyAccessToken + blacklistAccessToken (Redis) + revokeRefreshToken + findValidRefreshToken
+- [x] `Libraries/SmsLibrary.php` : Africa's Talking OTP 6 chiffres, stockage hash SHA-256 Redis (jamais le code en clair), TTL dynamique, compteur tentatives
+- [x] `Services/AuthContext.php` : singleton statique PHP 8.2 compatible (remplace `$request->user` propriété dynamique dépréciée)
+- [x] `Filters/AuthFilter.php` : middleware JWT → `AuthContext::set()`, 401 si token absent/invalide
+- [x] `Modules/Auth/Models/UserModel.php` + `Entities/UserEntity.php` : findByPhone, findByEmail, findByPhoneOrEmail, setPassword (bcrypt), verifyPassword, toPublicArray
+- [x] `Modules/Auth/Services/AuthService.php` : register, verifyPhone, resendOtp, login (rate limit 10/15min Redis), requestLoginOtp, verifyLoginOtp, refreshToken (rotation), logout (blacklist + revoke), forgotPassword, resetPassword, getMe, updateMe, switchAssociation
+- [x] `Modules/Auth/Controllers/AuthController.php` : 13 endpoints REST, validation CI4, délégation AuthService
+- [x] `code-reviewer` : NEEDS FIXES → 5 corrections appliquées (AuthContext PHP 8.2, resetPassword body, TTL dynamique)
+- [x] `security-auditor` : NEEDS FIXES → 4 corrections appliquées (anti-énumération, rate limiting login, OTP reset via Redis pas DB)
+
+---
+
 ## Sprint 1 — Migrations Phase 1 (2026-03-05) commit ac8fcd9
 
 ### 9 migrations tables fondations — TERMINÉES
