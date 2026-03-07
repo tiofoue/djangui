@@ -41,7 +41,7 @@
 - [x] Anti-énumération, rate limiting Redis login (10/15min), OTP reset SMS
 
 ### ✅ i18n & Diaspora — TERMINÉ (2026-03-07)
-- [x] Migration corrective `2026-03-07-000001_AddLanguageToUsers` — `language ENUM('fr','en') DEFAULT 'fr'`
+- [x] ~~Migration corrective `2026-03-07-000001_AddLanguageToUsers`~~ → consolidée dans `CreateUsersTable` (supprimée)
 - [x] `SmsLibrary::sendOtp()` + `buildOtpMessage()` bilingues (FR/EN)
 - [x] `JwtLibrary::generateAccessToken()` — claim `lang` dans le JWT
 - [x] `AuthService` — langue propagée à tous les `sendOtp()` + `generateAccessToken()`
@@ -70,12 +70,10 @@
 - [x] `MeController` : GET /me/overview (dashboard cross-associations)
 - [ ] `RoleFilter` middleware (president = treasurer implicite pour tontine_group) ← Sprint 2
 - [ ] `TontineModeratorFilter` middleware (moderateur_id OU treasurer OU president) ← Sprint 2
-- [ ] Tests Members
+- [x] Tests Members — 28/28 ✅ (2026-03-07)
 
-### 🔴 PROCHAINE TÂCHE — Seeds
-
-### Seeds
-- [ ] `DemoSeeder` : 1 tontine_group + 1 association + 1 admin (avec phone) + 5 membres
+### ✅ Seeds — TERMINÉ (2026-03-07)
+- [x] `DemoSeeder` : 4 plans + 1 super-admin + 5 membres + 1 tontine_group + 1 association + 2 subscriptions + 12 members + 8 settings
 
 ---
 

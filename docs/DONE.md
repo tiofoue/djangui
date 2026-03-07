@@ -1,5 +1,29 @@
 # DONE — Décisions et documentation terminées
 
+## Sprint 1 — Tests Module Members + Seeds + Consolidation (2026-03-07) commit c8b2cdb
+
+### 28 tests unitaires MemberService — TERMINÉS
+- [x] `phpunit.xml` : DB de test configurée (MySQLi, `djangui`, localhost) — partagée avec la DB principale
+- [x] `tests/_support/Database/Seeds/MembersTestSeeder` : fixture idempotente (truncate FK disabled + insert) — 6 users, 2 associations, 12 members
+- [x] `tests/Feature/Members/MemberServiceTest` : 28 tests / 64 assertions couvrant toutes les méthodes MemberService
+  - `getMembers` (pagination, guard non-membre), `getMember` (found, 404)
+  - `changeRole` (succès président, guard non-président, auto-modification, rôle président interdit, rôle invalide tontine_group)
+  - `removeMember` (soft-delete, guard non-président, auto-retrait, retrait président)
+  - `invite` (création phone, guard membre, sans contact, doublon pending, rôle invalide tontine_group)
+  - `cancelInvitation` (status=cancelled, guard membre, non-pending)
+  - `acceptInvitation` (nouvelle adhésion, réactivation ancien membre, token expiré, mauvais destinataire, déjà actif)
+  - `getOverview` (résultats, liste vide)
+- [x] `BaseModel::findAll()` : signature corrigée `?int $limit = null` — conformité PHP 8.3 LSP
+- [x] `AssociationMemberModel::findMemberWithUser()` : `am.is_active` ajouté au SELECT (fix `Undefined array key "is_active"`)
+- [x] `DemoSeeder` : 4 plans (free/starter/pro/federation) + 1 super-admin + 5 membres + 1 tontine_group + 1 association + 2 subscriptions pro trial + 12 association_members + 8 association_settings
+
+### Consolidation migrations
+- [x] `CreateUsersTable` : colonne `language ENUM('fr','en') NOT NULL DEFAULT 'fr'` intégrée directement — migration corrective `AddLanguageToUsers` supprimée
+- [x] `CreateInvitationsTable` : `'cancelled'` ajouté à l'ENUM `status` dès l'origine (cancel manuel ≠ expiration naturelle)
+- [x] `MemberService::cancelInvitation()` : `status='expired'` → `status='cancelled'` (aligné sur nouvel ENUM)
+
+---
+
 ## Sprint 1 — Module Members (2026-03-07)
 
 ### Members complet — 9 routes, invitations, dashboard personnel, sécurité
