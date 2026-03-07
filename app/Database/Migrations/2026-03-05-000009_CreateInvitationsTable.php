@@ -31,7 +31,7 @@ class CreateInvitationsTable extends Migration
             // État de l'invitation
             'status' => [
                 'type'       => 'ENUM',
-                'constraint' => ['pending', 'accepted', 'expired'],
+                'constraint' => ['pending', 'accepted', 'cancelled', 'expired'],
                 'null'       => false,
                 'default'    => 'pending',
             ],

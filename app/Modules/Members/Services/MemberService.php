@@ -454,7 +454,7 @@ class MemberService extends BaseService
 
         $this->db->table('invitations')
             ->where('id', $invitationId)
-            ->update(['status' => 'expired']);
+            ->update(['status' => 'cancelled']);
     }
 
     /**

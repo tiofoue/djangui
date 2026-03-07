@@ -25,6 +25,13 @@ class CreateUsersTable extends Migration
             'password' => ['type' => 'VARCHAR', 'constraint' => 255, 'null' => false],
             // Chemin vers l'avatar
             'avatar' => ['type' => 'VARCHAR', 'constraint' => 255, 'null' => true, 'default' => null],
+            // Langue préférée (SMS, notifications, PDF) — FR/EN (langues officielles du Cameroun)
+            'language' => [
+                'type'       => 'ENUM',
+                'constraint' => ['fr', 'en'],
+                'null'       => false,
+                'default'    => 'fr',
+            ],
             // Compte actif
             'is_active' => ['type' => 'TINYINT', 'constraint' => 1, 'unsigned' => true, 'null' => false, 'default' => 1],
             // Super-administrateur plateforme
