@@ -138,12 +138,12 @@ abstract class BaseModel extends Model
     /**
      * Récupère tous les enregistrements, scopés par association_id.
      *
-     * @param int $limit  Nombre maximum d'enregistrements (0 = illimité)
-     * @param int $offset Décalage pour la pagination
+     * @param int|null $limit  Nombre maximum d'enregistrements (null/0 = illimité)
+     * @param int      $offset Décalage pour la pagination
      *
      * @return array<int, array<string, mixed>|object> Liste des enregistrements
      */
-    public function findAll(int $limit = 0, int $offset = 0): array
+    public function findAll(?int $limit = null, int $offset = 0): array
     {
         $this->applyTenantScope();
 

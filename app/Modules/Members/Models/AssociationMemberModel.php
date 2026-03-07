@@ -119,7 +119,7 @@ class AssociationMemberModel extends BaseModel
     {
         $row = $this->db->table('association_members am')
             ->select(
-                'am.id, am.user_id, am.effective_role, am.joined_at,
+                'am.id, am.user_id, am.effective_role, am.joined_at, am.is_active,
                  u.uuid, u.first_name, u.last_name, u.phone, u.email, u.avatar'
             )
             ->join('users u', 'u.id = am.user_id')
