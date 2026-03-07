@@ -1,5 +1,25 @@
 # DONE — Décisions et documentation terminées
 
+## Sprint 1 — Module Associations & Plans (2026-03-07) commit 584b2e2
+
+### Associations + Plans complets — 15 routes, QuotaFilter, sécurité
+- [x] `Modules/Associations/Entities/AssociationEntity` : casts, `isActive()`, `toPublicArray()`
+- [x] `Modules/Associations/Models/AssociationModel` : `$scopedByAssociation=false`, `findBySlug/UserId/Children/Pending/AllPaginated`, `countPending/AllActive()`
+- [x] `Modules/Associations/Models/AssociationSettingModel` : `$scopedByAssociation=true`, `$useTimestamps=false`, upsert pattern, `getAllForAssociation/getByKey/upsertSetting/deleteCustom`
+- [x] `Modules/Plans/Models/PlanModel` + `SubscriptionModel` : `$scopedByAssociation=false`, `getActivePlans/findByName`, `getForAssociation/getWithPlan` (JOIN)
+- [x] `Modules/Plans/Services/PlanService` : `getPlans/getSubscription/subscribe/cancel/createFreeTrial/checkQuota` + `requireMembership/requirePresident` (vérification DB)
+- [x] `Modules/Associations/Services/AssociationService` : CRUD complet, workflows approve/reject/suspend/reinstate, settings, `SYSTEM_SETTING_KEYS` allowlist, rate-limit Redis 10/h, transaction DB sur create(), validation parent_id
+- [x] `Modules/Associations/Controllers/AssociationController` : 12 endpoints + guards super_admin
+- [x] `Modules/Associations/Controllers/SettingsController` : 2 endpoints GET/PUT settings
+- [x] `Modules/Plans/Controllers/SubscriptionController` : 4 endpoints (plans public + sub auth)
+- [x] `Modules/Associations/Config/Routes.php` + `Modules/Plans/Config/Routes.php` : 15 routes, filtre auth
+- [x] `Filters/QuotaFilter` : HTTP 402, association_id depuis URL (pas JWT), `$resourceTables`, `tableExists` guard Sprint 1
+- [x] `Config/Filters.php` : alias `'quota'` enregistré
+- [x] `code-reviewer` : 5 NEEDS FIXES corrigés (soft-delete redondants, countAll→countAllActive, transaction DB, accès subscription, QuotaFilter URL)
+- [x] `security-auditor` : 9 CRITICAL/HIGH corrigés (IDOR subscription, privilege escalation, rate-limiting, statutes_file/logo regex, parent_id validation, getById 404 uniforme, SYSTEM_SETTING_KEYS, QuotaFilter URL)
+
+---
+
 ## Sprint 1 — i18n & Diaspora (2026-03-07) commits fe74457 + 4e262f7
 
 ### Bilingue FR/EN + membres internationaux — TERMINÉ

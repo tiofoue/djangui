@@ -48,19 +48,19 @@
 - [x] `AuthController` — validation `permit_empty|in_list[fr,en]` sur `register` + `updateMe`
 - [x] Docs : BUSINESS_RULES, DATABASE, ARCHITECTURE, CLAUDE.md, API.md
 
-### 🔴 PROCHAINE TÂCHE — Module Associations (php-pro)
-
-### Module Associations
+### ✅ Module Associations + Plans — TERMINÉ (2026-03-07) commit 584b2e2
 **Code :**
-- [ ] `AssociationModel` + `AssociationEntity`
-- [ ] `AssociationSettingModel` (CRUD custom fields + protection clés système)
-- [ ] `AssociationService` : CRUD + normalisation clés custom (trim→lower→accents→snake_case)
-- [ ] `AssociationController` : CRUD complet + admin endpoints (super_admin)
-- [ ] `SettingsController` : GET/PUT /associations/{id}/settings (clés système + custom)
-- [ ] `PlanModel` + `SubscriptionModel` + `PlanService`
-- [ ] `SubscriptionController` : GET/POST/DELETE /associations/{id}/subscription
-- [ ] `QuotaFilter` middleware (max_members, max_tontines, max_entities, features)
+- [x] `AssociationModel` + `AssociationEntity`
+- [x] `AssociationSettingModel` (CRUD custom fields + protection clés système)
+- [x] `AssociationService` : CRUD + normalisation clés custom (trim→lower→accents→snake_case)
+- [x] `AssociationController` : CRUD complet + admin endpoints (super_admin)
+- [x] `SettingsController` : GET/PUT /associations/{id}/settings (clés système + custom)
+- [x] `PlanModel` + `SubscriptionModel` + `PlanService`
+- [x] `SubscriptionController` : GET/POST/DELETE /associations/{id}/subscription
+- [x] `QuotaFilter` middleware (max_members, max_tontines, max_entities, features)
 - [ ] Tests Associations + Plans
+
+### 🔴 PROCHAINE TÂCHE — Module Members
 
 ### Module Members
 **Code :**
