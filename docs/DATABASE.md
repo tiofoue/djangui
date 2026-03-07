@@ -68,6 +68,7 @@ phone               VARCHAR(20) NOT NULL UNIQUE   -- identifiant principal, obli
 email               VARCHAR(191) UNIQUE NULL       -- optionnel
 password            VARCHAR(255) NOT NULL
 avatar              VARCHAR(255) NULL
+language            ENUM('fr','en') NOT NULL DEFAULT 'fr'  -- langue préférée (SMS, notifications, PDF)
 is_active           TINYINT(1) DEFAULT 1
 is_super_admin      TINYINT(1) DEFAULT 0           -- accès total plateforme (super_admin)
 phone_verified_at   DATETIME NULL                  -- vérification OTP SMS

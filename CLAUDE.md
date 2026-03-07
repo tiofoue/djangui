@@ -222,10 +222,21 @@ app/
 
 ---
 
-## 🌍 Timezone
-- Stockage DB : **toujours UTC**
-- Hiérarchie d'affichage : Plateforme (`Africa/Douala`) → Association → Tontine
+## 🌍 Timezone & i18n
+
+### Timezone
+- Stockage DB : **toujours UTC** (`DATETIME` sans timezone, MySQL UTC)
+- Hiérarchie effective : `tontine.timezone` → `association.timezone` → `"Africa/Douala"` (défaut plateforme)
 - `session_deadline_time` (TIME) interprétée dans le timezone effectif de la tontine
+- Les réponses API incluent `timezone` (IANA) + `deadline_utc` (ISO 8601 UTC calculé)
+- **Aucun timezone personnel utilisateur** — les décomptes sont côté client (Vue 3 / Flutter)
+
+### Internationalisation (i18n)
+- Bilingue **FR / EN** — langues officielles du Cameroun
+- `users.language ENUM('fr','en') DEFAULT 'fr'` — préférence par utilisateur
+- Claim JWT `lang` — langue transportée dans le token pour les notifications
+- SMS et notifications envoyés dans `user.language`
+- Membres diaspora supportés : numéro E.164 international accepté, Africa's Talking gère l'envoi
 
 ---
 

@@ -222,6 +222,24 @@ Client → GET /api/associations (Header: Authorization: Bearer <token>)
 - Le `BaseModel` scope automatiquement les requêtes sur `association_id`
 - Un utilisateur peut switcher d'association via `POST /api/auth/switch-association`
 
+## Internationalisation (i18n)
+
+- Plateforme bilingue **FR / EN** (langues officielles du Cameroun)
+- La langue est stockée par utilisateur (`users.language ENUM('fr','en') DEFAULT 'fr'`)
+- Le claim JWT `lang` transporte la langue pour éviter une requête DB à chaque notification
+- Les SMS et notifications sont envoyés dans `user.language`
+- Les rapports PDF utilisent la langue de l'association (`association_settings.language`)
+- Membres diaspora : tout numéro E.164 international est accepté — Africa's Talking supporte l'envoi international
+
+## Convention Datetime & Timezone
+
+- **Stockage DB** : toujours UTC (`DATETIME` MySQL sans timezone)
+- **Sorties API** : toujours UTC ISO 8601 (`"2026-03-20T17:00:00Z"`)
+- **Timezone de référence des activités** : `tontine.timezone` → `association.timezone` → `"Africa/Douala"`
+- Les réponses API incluent systématiquement `timezone` (IANA) + `deadline_utc` (UTC calculé) pour les objets séance
+- **Les décomptes sont calculés côté client** (Vue 3 / Flutter) — le backend ne retourne jamais "X minutes restantes"
+- Aucun timezone personnel par utilisateur : la référence est toujours celle de la tontine/association
+
 ## Sécurité
 
 - JWT avec expiration courte (access: 15min, refresh: 7j)

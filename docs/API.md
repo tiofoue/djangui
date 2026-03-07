@@ -9,7 +9,7 @@ Auth : `Authorization: Bearer <access_token>` (sauf routes publiques)
 
 | Méthode | Endpoint | Auth | Description |
 |---------|----------|------|-------------|
-| POST | `/auth/register` | ❌ | Créer un compte (phone obligatoire, email optionnel) → envoie OTP SMS |
+| POST | `/auth/register` | ❌ | Créer un compte (phone obligatoire, email optionnel, language optionnel `fr`\|`en`) → envoie OTP SMS |
 | POST | `/auth/verify-phone` | ❌ | Vérifier OTP SMS → active le compte |
 | POST | `/auth/resend-otp` | ❌ | Renvoyer OTP SMS |
 | POST | `/auth/login` | ❌ | Connexion via phone ou email + password (flux principal) |
@@ -19,8 +19,8 @@ Auth : `Authorization: Bearer <access_token>` (sauf routes publiques)
 | POST | `/auth/logout` | ✅ | Invalider token |
 | POST | `/auth/forgot-password` | ❌ | Reset par SMS OTP (primaire) ou email (si renseigné) |
 | POST | `/auth/reset-password` | ❌ | Réinitialiser mot de passe |
-| GET  | `/auth/me` | ✅ | Profil utilisateur connecté |
-| PUT  | `/auth/me` | ✅ | Modifier profil |
+| GET  | `/auth/me` | ✅ | Profil utilisateur connecté (inclut `language`) |
+| PUT  | `/auth/me` | ✅ | Modifier profil (champs : `first_name`, `last_name`, `email`, `avatar`, `language`) |
 | POST | `/auth/switch-association` | ✅ | Changer d'association active |
 
 ---

@@ -97,12 +97,13 @@ class SmsLibrary
      * Clé cache : "otp:{purpose}:{phone}"  (ex: "otp:register:+237699000000")
      * TTL : Auth::$otpTtl secondes.
      *
-     * @param string $phone   Numéro destinataire E.164
-     * @param string $purpose Contexte : 'register' | 'login' | 'reset'
+     * @param string $phone    Numéro destinataire E.164
+     * @param string $purpose  Contexte : 'register' | 'login' | 'reset'
+     * @param string $language Langue du message SMS : 'fr' | 'en' (défaut : 'fr')
      *
      * @return string Le code OTP à 6 chiffres (à transmettre au client en dev, jamais en prod)
      */
-    public function sendOtp(string $phone, string $purpose): string
+    public function sendOtp(string $phone, string $purpose, string $language = 'fr'): string
     {
         $code     = sprintf('%06d', random_int(0, 999999));
         $codeHash = hash('sha256', $code);
@@ -114,7 +115,7 @@ class SmsLibrary
         // Réinitialiser le compteur de tentatives
         cache()->delete("otp:attempts:{$purpose}:{$phone}");
 
-        $message = $this->buildOtpMessage($purpose, $code);
+        $message = $this->buildOtpMessage($purpose, $code, $language);
         $this->sendSms($phone, $message);
 
         return $code;
@@ -179,16 +180,26 @@ class SmsLibrary
     // -------------------------------------------------------------------------
 
     /**
-     * Construit le message SMS selon le contexte OTP.
+     * Construit le message SMS selon le contexte OTP et la langue de l'utilisateur.
      *
-     * @param string $purpose Contexte : 'register' | 'login' | 'reset'
-     * @param string $code    Code OTP à inclure dans le message
+     * @param string $purpose  Contexte : 'register' | 'login' | 'reset'
+     * @param string $code     Code OTP à inclure dans le message
+     * @param string $language Langue du message : 'fr' | 'en' (défaut : 'fr')
      *
-     * @return string Message SMS formaté
+     * @return string Message SMS formaté dans la langue demandée
      */
-    private function buildOtpMessage(string $purpose, string $code): string
+    private function buildOtpMessage(string $purpose, string $code, string $language = 'fr'): string
     {
         $minutes = (int) round($this->config->otpTtl / 60);
+
+        if ($language === 'en') {
+            return match ($purpose) {
+                'register' => "Djangui: Your verification code is {$code}. Valid for {$minutes} minutes.",
+                'login'    => "Djangui: Your login code is {$code}. Valid for {$minutes} minutes.",
+                'reset'    => "Djangui: Your reset code is {$code}. Valid for {$minutes} minutes.",
+                default    => "Djangui: Your code is {$code}. Valid for {$minutes} minutes.",
+            };
+        }
 
         return match ($purpose) {
             'register' => "Djangui : Votre code de vérification est {$code}. Valable {$minutes} minutes.",

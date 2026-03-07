@@ -40,6 +40,14 @@
 - [x] `AuthFilter` middleware + `AuthContext` (PHP 8.2 compat)
 - [x] Anti-énumération, rate limiting Redis login (10/15min), OTP reset SMS
 
+### ✅ i18n & Diaspora — TERMINÉ (2026-03-07)
+- [x] Migration corrective `2026-03-07-000001_AddLanguageToUsers` — `language ENUM('fr','en') DEFAULT 'fr'`
+- [x] `SmsLibrary::sendOtp()` + `buildOtpMessage()` bilingues (FR/EN)
+- [x] `JwtLibrary::generateAccessToken()` — claim `lang` dans le JWT
+- [x] `AuthService` — langue propagée à tous les `sendOtp()` + `generateAccessToken()`
+- [x] `AuthController` — validation `permit_empty|in_list[fr,en]` sur `register` + `updateMe`
+- [x] Docs : BUSINESS_RULES, DATABASE, ARCHITECTURE, CLAUDE.md, API.md
+
 ### 🔴 PROCHAINE TÂCHE — Module Associations (php-pro)
 
 ### Module Associations

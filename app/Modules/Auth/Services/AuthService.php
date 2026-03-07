@@ -141,7 +141,8 @@ class AuthService
             (string) $user->phone,
             $associationId,
             $role,
-            (bool) $user->is_super_admin
+            (bool) $user->is_super_admin,
+            (string) ($user->language ?? 'fr')
         );
 
         $refreshData = $this->jwt->generateRefreshToken((int) $user->id, $accessData['jti']);
@@ -187,15 +188,21 @@ class AuthService
             throw new \RuntimeException('Ce numéro de téléphone est déjà utilisé.');
         }
 
+        // Extraire la langue préférée (défaut : 'fr')
+        $language = in_array($data['language'] ?? '', ['fr', 'en'], true)
+            ? (string) $data['language']
+            : 'fr';
+
         // Créer l'utilisateur (désactivé jusqu'à vérification OTP)
         $user = new UserEntity();
         $user->fill([
-            'uuid'       => $this->generateUuid(),
-            'first_name' => (string) ($data['first_name'] ?? ''),
-            'last_name'  => (string) ($data['last_name'] ?? ''),
-            'phone'      => $phone,
-            'email'      => ($data['email'] ?? null) ?: null,
-            'is_active'  => 0,
+            'uuid'           => $this->generateUuid(),
+            'first_name'     => (string) ($data['first_name'] ?? ''),
+            'last_name'      => (string) ($data['last_name'] ?? ''),
+            'phone'          => $phone,
+            'email'          => ($data['email'] ?? null) ?: null,
+            'language'       => $language,
+            'is_active'      => 0,
             'is_super_admin' => 0,
         ]);
         $user->setPassword((string) ($data['password'] ?? ''));
@@ -205,8 +212,8 @@ class AuthService
             throw new \RuntimeException('Impossible de créer le compte : ' . implode(', ', $this->userModel->errors()));
         }
 
-        // Envoyer l'OTP d'activation
-        $this->sms->sendOtp($phone, 'register');
+        // Envoyer l'OTP d'activation dans la langue de l'utilisateur
+        $this->sms->sendOtp($phone, 'register', $language);
 
         return [
             'message' => 'Un code de vérification a été envoyé par SMS.',
@@ -306,7 +313,7 @@ class AuthService
         // Incrémenter le compteur de renvois (TTL = 15 min)
         cache()->save($resendKey, $resendCount + 1, 900);
 
-        $this->sms->sendOtp($phone, $purpose);
+        $this->sms->sendOtp($phone, $purpose, (string) ($user->language ?? 'fr'));
 
         return [
             'message' => 'Code de vérification renvoyé par SMS.',
@@ -387,7 +394,7 @@ class AuthService
             ];
         }
 
-        $this->sms->sendOtp($phone, 'login');
+        $this->sms->sendOtp($phone, 'login', (string) ($user->language ?? 'fr'));
 
         return [
             'message' => 'Code de connexion envoyé par SMS.',
@@ -471,7 +478,8 @@ class AuthService
             (string) $user->phone,
             $associationId,
             $role,
-            (bool) $user->is_super_admin
+            (bool) $user->is_super_admin,
+            (string) ($user->language ?? 'fr')
         );
 
         $refreshData = $this->jwt->generateRefreshToken($userId, $accessData['jti']);
@@ -540,7 +548,7 @@ class AuthService
         // Canal SMS : OTP 6 chiffres (hashé dans Redis, TTL = otpTtl)
         // Avantage : code court mémorisable, même mécanisme sécurisé que les autres OTP
         if ($user->phone !== null) {
-            $this->sms->sendOtp((string) $user->phone, 'reset');
+            $this->sms->sendOtp((string) $user->phone, 'reset', (string) ($user->language ?? 'fr'));
         }
 
         // Canal email : TODO — intégrer MailLibrary quand disponible
@@ -640,7 +648,7 @@ class AuthService
         }
 
         // Filtrer les champs autorisés (pas de phone, password, is_active, etc.)
-        $allowed = ['first_name', 'last_name', 'email', 'avatar'];
+        $allowed = ['first_name', 'last_name', 'email', 'avatar', 'language'];
         $update  = array_intersect_key($data, array_flip($allowed));
 
         if (empty($update)) {
@@ -727,7 +735,8 @@ class AuthService
             (string) $user->phone,
             (int) $membership['association_id'],
             (string) $membership['effective_role'],
-            (bool) $user->is_super_admin
+            (bool) $user->is_super_admin,
+            (string) ($user->language ?? 'fr')
         );
 
         $refreshData = $this->jwt->generateRefreshToken($userId, $accessData['jti']);

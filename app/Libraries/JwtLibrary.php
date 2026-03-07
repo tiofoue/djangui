@@ -40,7 +40,7 @@ class JwtLibrary
      * Génère un access token JWT.
      *
      * Payload inclus : sub, uuid, phone, association_id, role,
-     * is_super_admin, jti, iat, exp.
+     * is_super_admin, lang, jti, iat, exp.
      *
      * @param int         $userId        Identifiant DB de l'utilisateur
      * @param string      $userUuid      UUID public de l'utilisateur
@@ -48,6 +48,7 @@ class JwtLibrary
      * @param int|null    $associationId Association active (null si aucune)
      * @param string|null $role          Rôle dans l'association active (null si aucune)
      * @param bool        $isSuperAdmin  Flag super-admin
+     * @param string      $userLanguage  Langue préférée de l'utilisateur : 'fr' | 'en' (claim `lang`)
      *
      * @return array{token: string, jti: string, expires_at: int}
      */
@@ -57,7 +58,8 @@ class JwtLibrary
         string $userPhone,
         ?int $associationId,
         ?string $role,
-        bool $isSuperAdmin
+        bool $isSuperAdmin,
+        string $userLanguage = 'fr'
     ): array {
         $jti = bin2hex(random_bytes(16));
         $iat = time();
@@ -70,6 +72,7 @@ class JwtLibrary
             'association_id' => $associationId,
             'role'           => $role,
             'is_super_admin' => $isSuperAdmin,
+            'lang'           => $userLanguage,
             'jti'            => $jti,
             'iat'            => $iat,
             'exp'            => $exp,

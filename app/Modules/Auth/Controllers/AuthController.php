@@ -65,6 +65,7 @@ class AuthController extends BaseController
             'phone'      => 'required|max_length[20]',
             'password'   => 'required|min_length[8]',
             'email'      => 'permit_empty|valid_email|max_length[191]',
+            'language'   => 'permit_empty|in_list[fr,en]',
         ];
 
         if (!$this->validate($rules)) {
@@ -431,6 +432,7 @@ class AuthController extends BaseController
             'last_name'  => 'permit_empty|max_length[100]',
             'email'      => 'permit_empty|valid_email|max_length[191]',
             'avatar'     => 'permit_empty|max_length[500]',
+            'language'   => 'permit_empty|in_list[fr,en]',
         ];
 
         if (!$this->validate($rules)) {

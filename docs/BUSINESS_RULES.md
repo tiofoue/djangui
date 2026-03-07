@@ -1,5 +1,53 @@
 # Règles métier — Djangui
 
+## Internationalisation & Diaspora
+
+### Langues officielles
+
+Le Cameroun ayant deux langues officielles (français et anglais), la plateforme est **bilingue FR/EN** :
+
+- Chaque utilisateur dispose d'une préférence de langue (`language` : `fr` | `en`, défaut `fr`)
+- Les SMS (OTP, notifications) sont envoyés dans la langue de l'utilisateur
+- Les rapports PDF sont générés dans la langue de l'association (`association_settings.language`)
+- La langue est modifiable par l'utilisateur via `PUT /auth/me` (champ `language`)
+
+### Diaspora — Membres hors Cameroun
+
+Un utilisateur résidant à l'étranger peut s'inscrire et être membre d'une association ou tontine camerounaise :
+
+- **Téléphone** : tout numéro E.164 international est accepté (`+33`, `+44`, `+1`, etc.)
+- **SMS** : Africa's Talking supporte les envois internationaux — aucune restriction côté backend
+- **Cotisations** : même règles que les membres locaux ; le paiement mobile money est géré hors plateforme (Phase 1)
+
+### Timezone — Convention immuable
+
+L'heure officielle de toutes les activités (séances, délais) est celle de la tontine ou de l'association :
+
+```
+Hiérarchie effective :
+  tontine.timezone  →  association.timezone  →  "Africa/Douala" (défaut plateforme)
+```
+
+**Le backend ne stocke ni n'utilise le timezone personnel du membre.**
+
+Les datetimes sont **toujours stockés en UTC** et **toujours retournés en UTC ISO 8601** dans les réponses API. Le champ `timezone` (IANA) de la tontine/association est systématiquement inclus pour permettre au client de convertir :
+
+```json
+{
+  "session_date": "2026-03-20",
+  "deadline_time": "18:00:00",
+  "timezone": "Africa/Douala",
+  "deadline_utc": "2026-03-20T17:00:00Z"
+}
+```
+
+**Les décomptes (countdowns) sont calculés côté client** (Vue 3 / Flutter) à partir de `deadline_utc`. Le membre en Australie voit automatiquement l'heure dans son fuseau local et le temps restant.
+
+Les SMS de notification incluent l'heure officielle avec l'abréviation timezone :
+> "Séance le 20/03 à 18h00 WAT (Douala). Consultez l'application pour l'heure locale."
+
+---
+
 ## Associations
 
 - Un utilisateur peut créer autant d'entités qu'il veut
