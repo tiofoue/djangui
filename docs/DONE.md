@@ -1,5 +1,24 @@
 # DONE — Décisions et documentation terminées
 
+## Sprint 1 — i18n & Diaspora (2026-03-07) commits fe74457 + 4e262f7
+
+### Bilingue FR/EN + membres internationaux — TERMINÉ
+- [x] Migration corrective `2026-03-07-000001_AddLanguageToUsers` : `language ENUM('fr','en') NOT NULL DEFAULT 'fr'` après `avatar`
+- [x] `UserModel` : `'language'` ajouté à `$allowedFields` + `$validationRules` (fix security-auditor)
+- [x] `SmsLibrary::sendOtp($phone, $purpose, $language='fr')` + `buildOtpMessage()` bilingues (match FR / match EN)
+- [x] `JwtLibrary::generateAccessToken()` : claim `lang` dans le payload JWT
+- [x] `AuthService` : langue propagée à tous les `sendOtp()` et `generateAccessToken()` ; whitelist `in_array(['fr','en'])` + fallback `'fr'`
+- [x] `AuthController` : `permit_empty|in_list[fr,en]` sur `register()` et `updateMe()`
+- [x] `BUSINESS_RULES.md` : section "Internationalisation & Diaspora" (bilingue, E.164 international, convention timezone/deadline_utc côté client)
+- [x] `DATABASE.md` : colonne `language` documentée sur `users`
+- [x] `ARCHITECTURE.md` : sections "Internationalisation" + "Convention Datetime & Timezone"
+- [x] `CLAUDE.md` : section "Timezone & i18n" enrichie
+- [x] `API.md` : `language` documenté sur `POST /auth/register` et `PUT /auth/me`
+- [x] `code-reviewer` : APPROVED (1 point mineur corrigé : dead import `use CodeIgniter\Model`)
+- [x] `security-auditor` : NEEDS FIXES → 2 corrections appliquées (`allowedFields` + `validationRules` dans `UserModel`)
+
+---
+
 ## Sprint 1 — Module Auth (2026-03-07) commit e2c023c
 
 ### Auth complet — 13 endpoints, JWT, OTP, sécurité
