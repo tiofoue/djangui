@@ -1,5 +1,24 @@
 # DONE — Décisions et documentation terminées
 
+## Sprint 1 — Module Members (2026-03-07)
+
+### Members complet — 9 routes, invitations, dashboard personnel, sécurité
+- [x] `Modules/Members/Models/AssociationMemberModel` : `$scopedByAssociation=false`, requêtes JOIN users, `getMembersWithUsers/countActiveMembers/findMembership/findMemberWithUser/getAssociationsForUser`
+- [x] `Modules/Members/Models/InvitationModel` : `$scopedByAssociation=false`, `findByToken` (public), `hasPendingInvitation/listByAssociation/countByAssociation`
+- [x] `Modules/Members/Services/MemberService` : `getMembers/getMember/changeRole/removeMember/invite/listInvitations/cancelInvitation/acceptInvitation/getOverview`
+- [x] `MemberService` : hiérarchie rôles `president(6)>treasurer(5)=secretary(5)>auditor(3)>censor(2)>member(1)`, validation type entité (tontine_group → president/treasurer/member uniquement)
+- [x] `MemberService::acceptInvitation()` : transaction DB, vérification destinataire (phone/email match), soft-delete invitation (`status='used'`)
+- [x] `Modules/Members/Controllers/MemberController` : 4 endpoints (list, detail, changeRole, remove)
+- [x] `Modules/Members/Controllers/InvitationController` : 4 endpoints (create, list, cancel, accept via token)
+- [x] `Modules/Members/Controllers/MeController` : GET /api/me/overview (dashboard cross-associations)
+- [x] `Modules/Members/Config/Routes.php` : 9 routes, toutes `['filter' => 'auth']`, placeholder custom `invittoken=[a-f0-9]{64}`
+- [x] `Common/BaseController` : migré de `extends ResourceController` vers `extends Controller + use ResponseTrait` (PHP 8.3 LSP — signatures incompatibles avec ResourceController)
+- [x] `Modules/Associations/Controllers/AssociationController` : `update($id=null)` + `delete($id=null)` — type hints retirés pour conformité parent
+- [x] `code-reviewer` : 6 CRITICAL corrigés (transaction acceptInvitation, vérif destinataire, null-safe AuthContext, placeholder token URL, commentaire filtre, variable assocId)
+- [x] `security-auditor` : APPROVED après corrections code-reviewer
+
+---
+
 ## Sprint 1 — Module Associations & Plans (2026-03-07) commit 584b2e2
 
 ### Associations + Plans complets — 15 routes, QuotaFilter, sécurité

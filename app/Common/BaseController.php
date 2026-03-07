@@ -4,21 +4,25 @@ declare(strict_types=1);
 
 namespace App\Common;
 
+use CodeIgniter\Controller;
+use CodeIgniter\API\ResponseTrait;
 use CodeIgniter\HTTP\ResponseInterface;
-use CodeIgniter\RESTful\ResourceController;
 
 /**
  * Contrôleur de base pour tous les modules HMVC de Djangui.
  *
- * Fournit des méthodes standardisées pour les réponses JSON.
- * Tous les contrôleurs API doivent étendre cette classe.
+ * Étend Controller (et non ResourceController) pour éviter les conflits
+ * de signatures de méthodes (update, delete, show, create) avec le parent.
+ * Le ResponseTrait est injecté directement pour les helpers de réponse JSON.
  *
  * Format succès  : { "status": "success", "data": ..., "message": "" }
  * Format erreur  : { "status": "error", "message": "", "errors": {} }
  * Format paginé  : { "status": "success", "data": [...], "meta": { ... } }
  */
-abstract class BaseController extends ResourceController
+abstract class BaseController extends Controller
 {
+    use ResponseTrait;
+
     /**
      * Format de réponse par défaut : JSON.
      *
@@ -39,8 +43,10 @@ abstract class BaseController extends ResourceController
      *
      * @return ResponseInterface
      */
-    protected function respond(mixed $data, int $status = 200, string $message = ''): ResponseInterface
+    protected function respond(mixed $data = null, ?int $status = 200, string $message = ''): ResponseInterface
     {
+        $status ??= 200;
+
         $payload = [
             'status'  => 'success',
             'data'    => $data,
@@ -60,7 +66,7 @@ abstract class BaseController extends ResourceController
      *
      * @return ResponseInterface
      */
-    protected function respondCreated(mixed $data, string $message = ''): ResponseInterface
+    protected function respondCreated(mixed $data = null, string $message = ''): ResponseInterface
     {
         return $this->respond($data, 201, $message);
     }
@@ -71,7 +77,7 @@ abstract class BaseController extends ResourceController
      *
      * @return ResponseInterface
      */
-    protected function respondNoContent(): ResponseInterface
+    protected function respondNoContent(string $message = ''): ResponseInterface
     {
         return $this->response->setStatusCode(204);
     }

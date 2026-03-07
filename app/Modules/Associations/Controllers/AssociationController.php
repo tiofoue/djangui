@@ -150,7 +150,7 @@ class AssociationController extends BaseController
      *
      * @return ResponseInterface
      */
-    public function update(int $id): ResponseInterface
+    public function update($id = null): ResponseInterface
     {
         $rules = [
             'name'          => 'permit_empty|max_length[191]',
@@ -202,7 +202,7 @@ class AssociationController extends BaseController
      *
      * @return ResponseInterface
      */
-    public function delete(int $id): ResponseInterface
+    public function delete($id = null): ResponseInterface
     {
         /** @var object $jwt */
         $jwt          = AuthContext::get();

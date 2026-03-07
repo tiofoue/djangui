@@ -60,19 +60,19 @@
 - [x] `QuotaFilter` middleware (max_members, max_tontines, max_entities, features)
 - [ ] Tests Associations + Plans
 
-### 🔴 PROCHAINE TÂCHE — Module Members
-
-### Module Members
+### ✅ Module Members — TERMINÉ (2026-03-07)
 **Code :**
-- [ ] `AssociationMemberModel` + `InvitationModel`
-- [ ] `MemberService` : invite (SMS si phone + email si dispo), accepter, changer rôle, retirer
-- [ ] `MemberService` : valider rôles selon type entité (tontine_group → treasurer|member uniquement)
-- [ ] `MemberController` : liste, profil, retrait, changement rôle
-- [ ] `InvitationController` : créer invitation + accepter via token
-- [ ] `MeController` : GET /me/overview (dashboard cross-associations)
-- [ ] `RoleFilter` middleware (president = treasurer implicite pour tontine_group)
-- [ ] `TontineModeratorFilter` middleware (moderateur_id OU treasurer OU president)
+- [x] `AssociationMemberModel` + `InvitationModel`
+- [x] `MemberService` : invite (SMS si phone + email si dispo), accepter, changer rôle, retirer
+- [x] `MemberService` : valider rôles selon type entité (tontine_group → treasurer|member uniquement)
+- [x] `MemberController` : liste, profil, retrait, changement rôle
+- [x] `InvitationController` : créer invitation + accepter via token
+- [x] `MeController` : GET /me/overview (dashboard cross-associations)
+- [ ] `RoleFilter` middleware (president = treasurer implicite pour tontine_group) ← Sprint 2
+- [ ] `TontineModeratorFilter` middleware (moderateur_id OU treasurer OU president) ← Sprint 2
 - [ ] Tests Members
+
+### 🔴 PROCHAINE TÂCHE — Seeds
 
 ### Seeds
 - [ ] `DemoSeeder` : 1 tontine_group + 1 association + 1 admin (avec phone) + 5 membres
