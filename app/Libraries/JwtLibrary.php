@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Libraries;
 
-use CodeIgniter\Model;
 use Config\Auth as AuthConfig;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;

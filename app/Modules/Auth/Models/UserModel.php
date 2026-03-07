@@ -61,6 +61,7 @@ class UserModel extends BaseModel
         'email',
         'password',
         'avatar',
+        'language',
         'is_active',
         'is_super_admin',
         'phone_verified_at',
@@ -76,6 +77,7 @@ class UserModel extends BaseModel
         'phone'      => 'required|max_length[20]|is_unique[users.phone,id,{id}]',
         'email'      => 'permit_empty|valid_email|max_length[191]|is_unique[users.email,id,{id}]',
         'password'   => 'required|min_length[8]',
+        'language'   => 'permit_empty|in_list[fr,en]',
     ];
 
     /**
