@@ -362,6 +362,10 @@ end_date                    DATE NULL
 max_members                 INT UNSIGNED NULL
 session_deadline_time       TIME DEFAULT '23:59:00'             -- heure limite de paiement le jour de la session
 grace_period_hours          TINYINT UNSIGNED DEFAULT 0          -- délai supplémentaire avant pénalité (tontine_group non-présentielle ; défaut 0)
+penalty_type                ENUM('fixed','fixed_per_day','fixed_per_week','fixed_per_month','percentage','percentage_per_day','percentage_per_week','percentage_per_month') DEFAULT 'fixed'
+penalty_value               DECIMAL(10,4) DEFAULT 0             -- 0 = aucune pénalité (défaut) ; montant XAF pour fixed*, taux décimal pour percentage*
+-- pénalité plafonnée à amount_due (enforced par PenaltyCalculator)
+-- destination : présentielle → caisse commune | non-présentielle → pot de la session
 timezone                    VARCHAR(50) NULL                    -- fuseau horaire (NULL = hérite de l'association)
 status                      ENUM('draft','active','completed','cancelled') DEFAULT 'draft'
 -- Champs réservés aux tontines de tontine_group

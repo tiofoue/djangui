@@ -834,6 +834,37 @@ Pour les tontines `is_presentielle = false`, un **délai supplémentaire** peut 
 - La date de comptage des pénalités est décalée de `grace_period_hours` après `session_deadline_time`
 - Permet d'absorber les délais de transfert Mobile Money sans pénaliser le membre de bonne foi
 
+### Pénalités de retard
+
+#### Paramétrage — par tontine
+
+Chaque tontine configure ses propres règles indépendamment. Pas de règle héritée depuis l'entité — dans un groupe informel, chaque tontine est autonome.
+
+- `tontines.penalty_type` + `tontines.penalty_value` (voir table `tontines` en DATABASE.md)
+- **Défaut : aucune pénalité** (`penalty_value = 0`) — le groupe choisit consciemment d'en activer une
+
+Les 8 modes disponibles sont identiques à ceux des tontines d'association (`fixed`, `fixed_per_day`, `fixed_per_week`, `fixed_per_month`, `percentage`, `percentage_per_day`, `percentage_per_week`, `percentage_per_month`).
+
+Pour les tontines **non-présentielle**, le compteur de retard démarre après `session_deadline_time + grace_period_hours`.
+
+#### Destination des pénalités
+
+| Mode | Destination |
+|------|-------------|
+| Présentielle | → Caisse commune (argent collecté sur place, bénéficie à tout le groupe) |
+| Non-présentielle | → Pot de la session (le bénéficiaire reçoit cotisations + pénalités collectées) |
+
+#### Plafond
+
+La pénalité ne peut jamais dépasser `amount_due`. Enforced par `PenaltyCalculator` — un long retard ne génère pas une dette supérieure à la cotisation initiale.
+
+#### Non-contribution totale
+
+Si un membre n'a pas payé à la clôture de session :
+- **Notification automatique** au président/trésorier
+- **Rétrogradation manuelle** uniquement — le modérateur décide selon le contexte (absence justifiée, maladie, mauvaise volonté)
+- La pénalité continue de s'accumuler (dans la limite du plafond) jusqu'au paiement effectif
+
 ### Conversion de tontine entre cycles
 
 Lorsqu'une tontine change de type (ex: `is_presentielle` modifié, `caisse_commune_type` changé), la conversion n'est possible qu'**entre deux cycles** :

@@ -106,7 +106,7 @@
 
 ### Module Tontines
 **Migrations :**
-- [ ] `tontines` (session_deadline_time, timezone, is_presentielle, caisse_commune_type, caisse_commune_per_session_amount, caisse_commune_target, grace_period_hours)
+- [ ] `tontines` (session_deadline_time, timezone, is_presentielle, caisse_commune_type, caisse_commune_per_session_amount, caisse_commune_target, grace_period_hours, penalty_type, penalty_value)
 - [ ] `tontine_members` (left_at)
 - [ ] `tontine_sessions` (cycle_number NOT NULL DEFAULT 1, seance_id NULL, present_count, moderated_by NULL, opened_at, UNIQUE(tontine_id, cycle_number, session_number))
 - [ ] `contributions` (payment_reference, UNIQUE(session_id, member_id))
@@ -120,7 +120,9 @@
 - [ ] `TontineService` : caisse commune (`CaisseCommuneService` : crédit per_session auto + ad_hoc + solde)
 - [ ] `TontineService` : grace_period_hours pour pénalités non-présentielle
 - [ ] `RotationService` : random / manual / bidding / session_auction
-- [ ] `PenaltyCalculator` : 8 modes (fixed, fixed_per_day/week/month, percentage, percentage_per_day/week/month)
+- [ ] `PenaltyCalculator` : 8 modes, plafond amount_due, source = tontines.penalty_type/value (tontine_group) ou association_settings (association/federation)
+- [ ] Destination pénalité : présentielle → caisse_commune_transactions | non-présentielle → pot session
+- [ ] Notification auto président/trésorier si membre non payé à clôture session
 - [ ] Résolution timezone effectif : `TontineService::getTimezone()` (tontine → association → plateforme)
 - [ ] Règle bidding : tous les membres doivent avoir bid_amount > 0 avant démarrage
 - [ ] Logique reconduction : incrémenter current_cycle, reset slots_received, nouvelles sessions
