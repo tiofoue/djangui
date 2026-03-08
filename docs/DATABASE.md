@@ -472,14 +472,19 @@ UNIQUE(tontine_id, cycle_number, session_number)
 
 ### `tontine_session_beneficiaries` — Bénéficiaires par séance (supporte N bénéficiaires)
 ```sql
-id              BIGINT UNSIGNED PK AUTO_INCREMENT
-session_id      BIGINT UNSIGNED FK → tontine_sessions.id
-tontine_id      BIGINT UNSIGNED FK → tontines.id
-member_id       BIGINT UNSIGNED FK → users.id
-slot_number     INT NOT NULL              -- position du slot dans la séance (1, 2, ...)
-amount_received DECIMAL(15,2) NULL        -- cagnotte / beneficiaries_per_session
-received_at     DATETIME NULL
+id                  BIGINT UNSIGNED PK AUTO_INCREMENT
+session_id          BIGINT UNSIGNED FK → tontine_sessions.id
+tontine_id          BIGINT UNSIGNED FK → tontines.id
+member_id           BIGINT UNSIGNED FK → users.id
+slot_number         INT NOT NULL              -- position du slot dans la séance (1, 2, ...)
+amount_received     DECIMAL(15,2) NULL        -- montant effectivement remis (peut être < total_collected si pot partiel)
+received_at         DATETIME NULL             -- horodatage de la remise
+payment_reference   VARCHAR(255) NULL         -- référence virement (optionnel, non-présentielle)
+disbursed_by        BIGINT UNSIGNED NULL FK → users.id  -- trésorier/président ayant confirmé la remise
 UNIQUE(session_id, slot_number)
+-- Présentielle   : amount_received et received_at remplis automatiquement à la clôture de session
+-- Non-présentielle : remplis via PUT /sessions/{sId}/disburse (étape obligatoire avant clôture)
+-- Pot partiel autorisé : amount_received peut être < total_collected théorique
 ```
 
 ### `contributions`

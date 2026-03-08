@@ -746,6 +746,47 @@ Disponible uniquement pour les tontines où `is_presentielle = true`.
 - Les fonds sont distincts de la cagnotte de la tontine principale
 - En mode `session_auction` : la caisse commune est **séparée** de la caisse d'adjudication (`tontines.caisse_balance`) — deux caisses indépendantes
 
+### Désignation et remise des gains au bénéficiaire
+
+#### Désignation du bénéficiaire
+
+Le bénéficiaire d'une session est déterminé par le **mode de rotation** de la tontine, défini au démarrage :
+
+| Mode | Moment de désignation |
+|------|-----------------------|
+| `random` | Tirage au sort à l'activation de la tontine — ordre fixé pour tout le cycle |
+| `manual` | Défini par le président avant le démarrage — ordre fixé pour tout le cycle |
+| `bidding` | Enchères soumises avant démarrage — ordre fixé pour tout le cycle |
+| `session_auction` | Enchère à chaque session — bénéficiaire connu uniquement en fin d'enchère |
+
+Pour les 3 premiers modes, chaque membre sait longtemps à l'avance quand il sera bénéficiaire. Pour `session_auction`, c'est le plus-disant de la séance qui remporte la cagnotte.
+
+#### Remise des gains — tontine présentielle
+
+La remise est **implicite à la clôture de session** : l'argent a physiquement changé de mains pendant la réunion.
+
+- Le trésorier clôture la session via `PUT /sessions/{sId}/close`
+- Le système renseigne automatiquement `amount_received = total_collected` et `received_at = horodatage de clôture`
+- Pas d'étape intermédiaire
+
+#### Remise des gains — tontine non-présentielle
+
+La remise est une **étape explicite** déclenchée par le trésorier après avoir effectué le virement :
+
+1. Les membres paient via Mobile Money jusqu'à `session_deadline_time + grace_period_hours`
+2. Le trésorier regroupe les fonds reçus et effectue le virement au bénéficiaire
+3. `PUT /sessions/{sId}/disburse` → saisie de `amount_received` + `payment_reference` (optionnelle)
+4. La clôture de session (`PUT /sessions/{sId}/close`) est **bloquée** tant que `disburse` n'a pas été appelé
+
+**Pot partiel autorisé :** si certains membres n'ont pas encore payé à la deadline, le bénéficiaire reçoit ce qui a été collecté. Le bénéficiaire n'est pas pénalisé pour les défaillances des autres membres. Les cotisations impayées restent tracées (`contributions.status = late`) et sont poursuivies séparément (pénalités applicables).
+
+| | Présentielle | Non-présentielle |
+|---|---|---|
+| Remise | Implicite à la clôture | Étape `disburse` explicite |
+| Pot partiel | N/A (cash collecté sur place) | ✅ Autorisé |
+| Référence paiement | N/A | Optionnelle |
+| Blocage clôture | Non | Oui, jusqu'au `disburse` |
+
 ### Référence de paiement (payment_reference)
 
 Pour les tontines `is_presentielle = false` ou les paiements effectués à distance, un champ **`payment_reference`** facultatif est disponible sur chaque cotisation (`contributions`) :
