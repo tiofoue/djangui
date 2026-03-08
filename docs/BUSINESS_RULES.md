@@ -904,6 +904,12 @@ La clôture est déclenchée par le président/trésorier, ou automatiquement si
 **Cotisations et pénalités impayées à la clôture :**
 Restent tracées comme dettes (`contributions.status = late`). Non bloquantes — le groupe décide humainement de les poursuivre ou non. L'historique complet est conservé.
 
+### Parts multiples et fenêtres d'éligibilité
+
+Les règles de parts multiples et d'éligibilité définies dans la section générale "Tontines" s'appliquent identiquement au `tontine_group` (fenêtres réparties, formule `ceil`).
+
+**Assouplissement pour tontine_group :** en mode `random` et `manual`, le président peut placer les slots d'un membre **consécutivement** dans leurs fenêtres respectives si le groupe le décide — le garde-fou "pas deux fois consécutifs" reste le comportement par défaut mais peut être outrepassé manuellement.
+
 ### Conversion de tontine entre cycles
 
 Lorsqu'une tontine change de type (ex: `is_presentielle` modifié, `caisse_commune_type` changé), la conversion n'est possible qu'**entre deux cycles** :
