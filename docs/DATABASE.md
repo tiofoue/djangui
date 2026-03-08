@@ -366,6 +366,7 @@ penalty_type                ENUM('fixed','fixed_per_day','fixed_per_week','fixed
 penalty_value               DECIMAL(10,4) DEFAULT 0             -- 0 = aucune pénalité (défaut) ; montant XAF pour fixed*, taux décimal pour percentage*
 -- pénalité plafonnée à amount_due (enforced par PenaltyCalculator)
 -- destination : présentielle → caisse commune | non-présentielle → pot de la session
+renewal_window_days         TINYINT UNSIGNED DEFAULT 7          -- nb de jours après dernière session pour modifier parts / se désinscrire / rejoindre
 timezone                    VARCHAR(50) NULL                    -- fuseau horaire (NULL = hérite de l'association)
 status                      ENUM('draft','active','completed','cancelled') DEFAULT 'draft'
 -- Champs réservés aux tontines de tontine_group

@@ -865,6 +865,45 @@ Si un membre n'a pas payé à la clôture de session :
 - **Rétrogradation manuelle** uniquement — le modérateur décide selon le contexte (absence justifiée, maladie, mauvaise volonté)
 - La pénalité continue de s'accumuler (dans la limite du plafond) jusqu'au paiement effectif
 
+### Reconduction de cycle
+
+À la clôture de la dernière session d'un cycle, si `auto_renew = true` et `max_cycles` non atteint :
+
+1. `tontines.current_cycle` est incrémenté
+2. `tontine_members.slots_received` est remis à 0 pour tous les membres actifs
+3. De nouvelles sessions sont générées selon le même mode de rotation
+4. Une **fenêtre de renouvellement** de 7 jours s'ouvre
+
+**Pendant la fenêtre de renouvellement (7 jours) :**
+- Les membres peuvent **se désinscrire** de la tontine
+- Les membres peuvent **modifier leur nombre de parts** (`shares`) pour le nouveau cycle
+- De nouveaux membres peuvent **rejoindre** la tontine
+- Passé ce délai, la composition est figée et les sessions du nouveau cycle sont générées
+
+**Caisse commune :**
+Le solde de la caisse commune est **reporté au cycle suivant** — il s'accumule dans le temps. Il n'est redistribué qu'à la **clôture définitive** de la tontine.
+
+**Pénalités impayées :**
+Les pénalités et cotisations impayées du cycle précédent sont **reportées** au cycle suivant. Le membre repart avec sa dette ; il ne repart pas à zéro.
+
+**Mode `session_auction` :**
+La `caisse_balance` (caisse d'adjudication) est redistribuée pro-rata des parts **avant** la reconduction, puis remise à 0. Distincte de la caisse commune informelle qui, elle, est reportée.
+
+### Clôture définitive de tontine
+
+La clôture est déclenchée par le président/trésorier, ou automatiquement si `max_cycles` est atteint ou à `end_date`.
+
+**Conditions :** aucun blocage sur les impayés — un groupe informel ne doit pas être bloqué par un membre défaillant. La clôture est possible même avec des cotisations ou pénalités en suspens.
+
+**Procédure de clôture :**
+1. Dernière session fermée (`status = closed`)
+2. Mode `session_auction` : redistribution `caisse_balance` pro-rata des parts
+3. **Redistribution de la caisse commune** (si solde > 0) : pro-rata des parts de chaque membre actif — cohérent avec la redistribution `session_auction`
+4. Tontine passe en `status = completed`
+
+**Cotisations et pénalités impayées à la clôture :**
+Restent tracées comme dettes (`contributions.status = late`). Non bloquantes — le groupe décide humainement de les poursuivre ou non. L'historique complet est conservé.
+
 ### Conversion de tontine entre cycles
 
 Lorsqu'une tontine change de type (ex: `is_presentielle` modifié, `caisse_commune_type` changé), la conversion n'est possible qu'**entre deux cycles** :
