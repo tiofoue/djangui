@@ -4,10 +4,10 @@
 - **Produit** : SaaS multi-associations · Gestion tontines, épargne, emprunts, solidarité · Marché Cameroun/CEMAC
 - **Framework** : CodeIgniter 4.7+ (architecture HMVC modulaire)
 - **Paradigme** : API First → Web (Vue 3, repo séparé) + Mobile (Flutter, repo séparé)
-- **Stack** : PHP 8.2, MySQL 8.0 (UTC), Redis (OTP cache + JWT blacklist), JWT (firebase/php-jwt), Africa's Talking (SMS)
+- **Stack** : PHP 8.3, MySQL 8.0 (UTC), Redis (OTP cache + JWT blacklist), JWT (firebase/php-jwt), Africa's Talking (SMS)
 - **Dev local** : Laragon (Apache + PHP 8.2 + MySQL 8) — pas de Docker
 - **VCS** : GitHub → https://github.com/tiofoue/djangui
-- **Phase actuelle** : Sprint 1 — Fondations & Auth (prêt à démarrer)
+- **Phase actuelle** : Sprint 1 COMPLET ✅ | Ajustements business rules Sprint 2 en cours
 
 ---
 
@@ -160,7 +160,7 @@ app/
 ├── Common/                ← BaseController, BaseModel, BaseService
 ├── Filters/               ← AuthFilter, RoleFilter, TontineModeratorFilter, QuotaFilter
 ├── Libraries/             ← JwtLibrary, SmsLibrary, PdfGenerator, CsvExporter
-├── Commands/              ← Jobs planifiés (OpenDueSessions, CheckLoanDefaults, CheckSubscriptions)
+├── Commands/              ← Jobs planifiés (OpenDueSessions, CloseOverdueSeances, CheckLoanDefaults, CheckLoanRenewals, CheckSubscriptions)
 └── Database/
     ├── Migrations/        ← Une migration par table
     └── Seeds/
@@ -288,9 +288,9 @@ vendor/bin/phpunit --filter NomDuTest
 ## 🗺️ Roadmap
 | Sprint | Périmètre | Statut |
 |--------|-----------|--------|
-| Sprint 1 | Fondations, Auth, Associations, Members, Plans | 🟡 Prêt à démarrer |
-| Sprint 2 | Tontines & Bureau | 🔲 En attente Sprint 1 |
-| Sprint 3 | Emprunts | 🔲 En attente Sprint 1 |
+| Sprint 1 | Fondations, Auth, Associations, Members, Plans | ✅ Complet |
+| Sprint 2 | Séances & Assemblées, Tontines & Bureau | 🟡 En cours (business rules) |
+| Sprint 3 | Cycles, Épargnes & Emprunts | 🔲 En attente Sprint 2 |
 | Sprint 4 | Solidarité & Documents | 🔲 En attente Sprint 3 |
 | Sprint 5 | Notifications, Reports, Polish API | 🔲 En attente Sprint 4 |
 | Sprint 6 | Frontend Web (Vue 3) | 🔲 En attente Sprint 5 |

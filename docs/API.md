@@ -60,7 +60,7 @@ Auth : `Authorization: Bearer <access_token>` (sauf routes publiques)
 
 ## Cycles d'activité
 
-> Disponible pour `association` et `federation` uniquement.
+> **Restriction type :** `association` et `federation` uniquement — les `tontine_group` n'ont pas accès. Vérifié par `QuotaFilter` / `CycleService`.
 
 | Méthode | Endpoint | Rôle min | Description |
 |---------|----------|----------|-------------|
@@ -68,13 +68,15 @@ Auth : `Authorization: Bearer <access_token>` (sauf routes publiques)
 | POST | `/associations/{id}/cycles` | president | Créer un exercice (→ status: draft) |
 | GET  | `/associations/{id}/cycles/{cId}` | member | Détail exercice |
 | PUT  | `/associations/{id}/cycles/{cId}/activate` | president | Activer l'exercice (→ status: active) |
-| PUT  | `/associations/{id}/cycles/{cId}/initiate-closing` | president | Initier la clôture (→ status: closing) — bloqué si prêts actifs |
-| PUT  | `/associations/{id}/cycles/{cId}/close` | president | Clôturer (→ status: closed) — déclenche distribution intérêts + retrait épargnes |
+| PUT  | `/associations/{id}/cycles/{cId}/initiate-closing` | president | Initier la clôture (→ status: closing) — bloqué si prêts `active` ou `approved` (prêts `defaulted` tolérés à cette étape) |
+| PUT  | `/associations/{id}/cycles/{cId}/close` | president | Clôturer (→ status: closed) — bloqué si tout prêt `active`, `approved` ou `defaulted` subsiste ; déclenche distribution intérêts + retrait épargnes |
 | GET  | `/associations/{id}/cycles/{cId}/interest-preview` | treasurer | Aperçu distribution intérêts (pro-rata calculé, non appliqué) |
 
 ---
 
 ## Bureau & Elections
+
+> **Restriction type :** `association` et `federation` uniquement — les `tontine_group` n'ont pas de bureau formel. Vérifié par `QuotaFilter` (feature `bureau`).
 
 ### Postes du bureau
 | Méthode | Endpoint | Rôle min | Description |
@@ -124,10 +126,12 @@ Auth : `Authorization: Bearer <access_token>` (sauf routes publiques)
 | GET  | `/associations/{id}/members/{userId}` | member | Profil membre |
 | PUT  | `/associations/{id}/members/{userId}/role` | president | Changer rôle |
 | DELETE | `/associations/{id}/members/{userId}` | president | Retirer membre |
-| POST | `/associations/{id}/invitations` | secretary | Inviter un membre (phone et/ou email) |
-| GET  | `/associations/{id}/invitations` | secretary | Liste invitations |
-| DELETE | `/associations/{id}/invitations/{invitId}` | secretary | Annuler invitation |
+| POST | `/associations/{id}/invitations` | secretary† | Inviter un membre (phone et/ou email) |
+| GET  | `/associations/{id}/invitations` | secretary† | Liste invitations |
+| DELETE | `/associations/{id}/invitations/{invitId}` | secretary† | Annuler invitation |
 | POST | `/invitations/{token}/accept` | ❌ | Accepter invitation |
+
+> **†** Pour `association` et `federation` : rôle minimum `secretary`. Pour `tontine_group` : rôle minimum `treasurer` (le rôle `secretary` n'existe pas dans ce type).
 
 ---
 
@@ -166,6 +170,8 @@ Auth : `Authorization: Bearer <access_token>` (sauf routes publiques)
 
 ## Emprunts
 
+> **Restriction type :** `association` et `federation` uniquement. Vérifié par `QuotaFilter` (feature `loans`).
+
 | Méthode | Endpoint | Rôle min | Description |
 |---------|----------|----------|-------------|
 | GET  | `/associations/{id}/loans` | treasurer | Liste emprunts |
@@ -180,10 +186,15 @@ Auth : `Authorization: Bearer <access_token>` (sauf routes publiques)
 | GET  | `/associations/{id}/loans/{lId}/guarantees` | member* | Liste des garanties |
 | GET  | `/associations/{id}/loans/{lId}/chain` | member* | Chaîne complète de reconduction (prêt racine → reconductions successives) |
 | PUT  | `/associations/{id}/loans/{lId}/guarantees/{gId}/confirm` | member* | Confirmer sa garantie (garant uniquement — status: pending → confirmed) |
+| PUT  | `/associations/{id}/loans/{lId}/renew` | treasurer | Reconduction CAS 1 — crée nouveau prêt (amount = old × (1+rate)) après remboursement complet |
+| PUT  | `/associations/{id}/loans/{lId}/force-renew` | treasurer | Reconduction CAS 2 — crée nouveau prêt sur solde restant (prêt non soldé à due_date) |
 
 *membre peut voir seulement ses propres emprunts
 
-> **Contraintes cycle & reconduction :** Un prêt ne peut être créé que si un cycle est `active`. La `due_date` est plafonnée à `cycle.end_date`. Taux par période (non annualisé). À l'échéance : `LoanService` crée un **nouveau** `loans` record — CAS 1 (`renewal_cap`) : amount = old × (1+rate) si remboursement complet ; CAS 2 (`renewal_forced`) : amount = solde restant. Le prêt précédent passe en `completed`. Traçabilité via chaîne `parent_loan_id`.
+> **Contraintes cycle & reconduction :** Un prêt ne peut être créé que si un cycle est `active`. La `due_date` est plafonnée à `cycle.end_date`. Taux par période (non annualisé).
+> - **CAS 1** (`renewal_cap`) : le trésorier appelle `PUT .../renew` après remboursement complet — `LoanService::renew()` crée un nouveau prêt (amount = old × (1+rate)).
+> - **CAS 2** (`renewal_forced`) : le trésorier appelle `PUT .../force-renew` — `LoanService::forceRenew()` crée un nouveau prêt sur solde restant. Le job `CheckLoanRenewals` **détecte** les prêts non soldés à due_date et **notifie** le trésorier — c'est lui qui décide de la reconduction forcée.
+> Dans les deux cas, le prêt précédent passe en `completed`. Traçabilité via chaîne `parent_loan_id`.
 
 > **Corps POST /loans :**
 > ```json
@@ -211,7 +222,7 @@ Auth : `Authorization: Bearer <access_token>` (sauf routes publiques)
 
 ## Épargnes
 
-> Disponible pour `association` et `federation` avec `savings_enabled = true`.
+> **Restriction type :** `association` et `federation` uniquement, avec `savings_enabled = true` dans les settings. Vérifié par `QuotaFilter` (feature `savings`).
 
 | Méthode | Endpoint | Rôle min | Description |
 |---------|----------|----------|-------------|
@@ -228,11 +239,13 @@ Auth : `Authorization: Bearer <access_token>` (sauf routes publiques)
 | POST | `/associations/{id}/savings/pool/entries` | president | Enregistrer un apport externe au capital |
 | GET  | `/associations/{id}/savings/pool/entries` | treasurer | Liste des apports externes |
 
-> **Note :** Le snapshot automatique est déclenché par le job `TakeSavingsSnapshots` au moment de chaque séance d'assemblée. L'endpoint manuel est fourni en secours.
+> **Note :** Le snapshot automatique est déclenché par `SeanceService` à la **clôture de chaque séance** (`status → held`). L'endpoint manuel (`POST .../snapshot`) est fourni en secours.
 
 ---
 
 ## Main levée (collecte ponctuelle)
+
+> **Restriction type :** `association` et `federation` uniquement. Vérifié par `QuotaFilter` (feature `solidarity`).
 
 | Méthode | Endpoint | Rôle min | Description |
 |---------|----------|----------|-------------|
@@ -247,6 +260,8 @@ Auth : `Authorization: Bearer <access_token>` (sauf routes publiques)
 ---
 
 ## Solidarité
+
+> **Restriction type :** `association` et `federation` uniquement. Vérifié par `QuotaFilter` (feature `solidarity`).
 
 | Méthode | Endpoint | Rôle min | Description |
 |---------|----------|----------|-------------|

@@ -11,24 +11,24 @@ API-first → Web (Vue 3) + Mobile (Flutter).
 
 | Sprint | Périmètre | Statut |
 |--------|-----------|--------|
-| Sprint 1 | Fondations, Auth, Associations, Members, Plans | 🟡 Planifié — prêt à démarrer |
-| Sprint 2 | Tontines & Bureau | 🔲 En attente Sprint 1 |
-| Sprint 3 | Emprunts | 🔲 En attente Sprint 1 |
+| Sprint 1 | Fondations, Auth, Associations, Members, Plans | ✅ Complet (2026-03-07) |
+| Sprint 2 | Séances & Assemblées, Tontines & Bureau | 🟡 En cours |
+| Sprint 3 | Cycles, Épargnes & Emprunts | 🔲 En attente Sprint 2 |
 | Sprint 4 | Solidarité & Documents | 🔲 En attente Sprint 3 |
 | Sprint 5 | Notifications, Reports & Polish API | 🔲 En attente Sprint 4 |
 | Sprint 6 | Frontend Web (Vue 3) | 🔲 En attente Sprint 5 |
 | Sprint 7 | Mobile (Flutter) | 🔲 En attente Sprint 5 |
 | Sprint 8 | Mise en production | 🔲 En attente Sprint 5 |
 
-> Phase de planification complète (2026-03-04). Code non démarré.
+> Sprint 1 complet (2026-03-07) — 83 tests passing. Sprint 2 business rules en cours (2026-03-08).
 
 ## Dépendances entre sprints
 ```
-Sprint 1 (Auth + Membres)
-  ├── Sprint 2 (Tontines & Bureau)
-  ├── Sprint 3 (Emprunts)          → dépend Sprint 1
-  └── Sprint 4 (Solidarité)        → dépend Sprint 3
-        └── Sprint 5 (Polish API)  → dépend Sprint 4
+Sprint 1 (Auth + Membres) ✅
+  ├── Sprint 2 (Séances + Tontines + Bureau)
+  ├── Sprint 3 (Cycles + Épargnes + Emprunts)  → dépend Sprint 2
+  └── Sprint 4 (Solidarité + Documents)         → dépend Sprint 3
+        └── Sprint 5 (Polish API)               → dépend Sprint 4
               ├── Sprint 6 (Web)
               ├── Sprint 7 (Mobile)
               └── Sprint 8 (Prod)
@@ -36,50 +36,72 @@ Sprint 1 (Auth + Membres)
 
 ---
 
-## Sprint 1 — Fondations & Auth
+## Sprint 1 — Fondations & Auth ✅ COMPLET (2026-03-07)
 
 **Objectif** : Projet CI4 opérationnel, auth JWT, associations, membres.
 
-- [ ] Setup CI4 4.7+ avec Laragon + structure HMVC + BaseController/Model/Service
-- [ ] Module Auth : register, verify-phone (OTP SMS), login, refresh, logout, reset-password, switch-association, GET/PUT me
-- [ ] Module Associations : CRUD, champs identité (slogan, logo, phone, address, bp, tax_number, auth_number), custom fields normalisés, settings, workflow validation super_admin
-- [ ] Module Members : invitation (SMS + email), rôles, retrait, dashboard cross-associations
-- [ ] Middleware AuthFilter + RoleFilter + TontineModeratorFilter + **QuotaFilter**
-- [ ] Module Plans : tables `plans` + `subscriptions`, `PlanService`, `QuotaFilter`
-- [ ] Migrations + DemoSeeder (1 tontine_group + 1 association + admin + 5 membres)
-- [ ] Tests PHPUnit (Auth + Associations + Members)
+- [x] Setup CI4 4.7+ avec Laragon + structure HMVC + BaseController/Model/Service
+- [x] Module Auth : register, verify-phone (OTP SMS), login, refresh, logout, reset-password, switch-association, GET/PUT me
+- [x] Module Associations : CRUD, champs identité, custom fields, settings, workflow validation super_admin
+- [x] Module Members : invitation (SMS + email), rôles, retrait, dashboard cross-associations
+- [x] Middleware AuthFilter + RoleFilter + TontineModeratorFilter + QuotaFilter
+- [x] Module Plans : tables `plans` + `subscriptions`, `PlanService`, `QuotaFilter`
+- [x] Migrations + DemoSeeder
+- [x] Tests PHPUnit Members (28/28 ✅) — Tests Associations/Plans : en attente
 
 ---
 
-## Sprint 2 — Tontines & Bureau
+## Sprint 2 — Séances & Assemblées, Tontines & Bureau
 
-**Objectif** : Cycle de tontine complet + organe dirigeant.
+**Objectif** : Réunions périodiques + cycle de tontine complet + organe dirigeant.
 
 > Bureau & Elections : `association` et `federation` uniquement (pas `tontine_group`)
 
-- [ ] Module Tontines : CRUD, inscription membres, génération sessions, 4 modes rotation (random/manual/bidding/session_auction)
-- [ ] Cotisations + pénalités (8 modes via `PenaltyCalculator`, `late_penalty_type` + `late_penalty_value`)
-- [ ] Heure limite cotisation (`session_deadline_time`) interprétée dans le timezone effectif
-- [ ] Enchères bidding (pré-tontine) + session_auction (par séance + redistribution caisse)
-- [ ] Modérateur de tontine + rétrogradation membres défaillants
-- [ ] Reconduction tacite (`auto_renew`, `max_cycles`, `current_cycle`)
-- [ ] Job planifié `OpenDueSessions` : pending → open/auction au matin de session_date
-- [ ] Module Bureau & Elections : postes, mandats, suppléances, workflow élection (draft → open → closed)
-- [ ] Tests PHPUnit (Tontines + Bureau)
+**Module Séances & Assemblées :**
+- [ ] Migrations : `public_holidays`, `seances`, `seance_participants`, `assemblees`, `assemblee_participants`, `agenda_items`
+- [ ] `SeanceService` : génération auto cycle, getCurrent(), clôture manuelle + job, snapshot épargne, réassignation si cancelled
+- [ ] `AgendaService` : points système auto (séance + assemblée), suggest() historique
+- [ ] Job `CloseOverdueSeances` : clôture auto à 23h59 de actual_date
+- [ ] Tests PHPUnit Séances & Assemblées
+
+**Module Tontines :**
+- [ ] CRUD, inscription membres, génération sessions liées aux séances (`seance_id` obligatoire)
+- [ ] 4 modes rotation (random/manual/bidding/session_auction) + PenaltyCalculator
+- [ ] Enchères bidding + session_auction + redistribution caisse
+- [ ] Modérateur + rétrogradation, reconduction tacite
+- [ ] Job `OpenDueSessions` : pending → open/auction au matin de session_date
+- [ ] Tests PHPUnit Tontines
+
+**Module Bureau & Elections :**
+- [ ] Postes, mandats, suppléances, workflow élection (draft → open → closed)
+- [ ] Tests PHPUnit Bureau
 
 ---
 
-## Sprint 3 — Emprunts
+## Sprint 3 — Cycles, Épargnes & Emprunts
 
-**Objectif** : Système d'emprunt complet avec calcul d'intérêts.
+**Objectif** : Exercice financier, épargne collective, emprunts.
 
 > Réservé aux entités `association` et `federation`
 
-- [ ] Module Loans : demande, garanties (membre/épargne/tontine/admin), approbation, décaissement, remboursements
-- [ ] Calcul intérêts simple et composé (formule d'annuité), génération échéancier
+**Module Cycles :**
+- [ ] Migrations `association_cycles` + settings `cycle_start_month` / `cycle_duration_months`
+- [ ] `CycleService` : activation, génération séances du cycle, clôture (validation prêts soldés), distribution intérêts
+- [ ] Label auto "Exercice YYYY-YYYY", end_date calculée
+
+**Module Savings :**
+- [ ] Migrations savings_accounts, savings_transactions, savings_snapshots, savings_pool_entries
+- [ ] `SavingsService` : deposit, presence, snapshot (déclenché à clôture séance), capital disponible, blockForGuarantee
+- [ ] `InterestDistributionService` : pro-rata, distribution fin de cycle
+
+**Module Loans :**
+- [ ] Migrations loans, loan_repayments, loan_guarantees
+- [ ] `LoanService` : demande, garanties, approbation, décaissement, remboursements, renew/forceRenew
+- [ ] Calcul intérêts simple et composé, génération échéancier
 - [ ] Imputation remboursements : pénalités → intérêts → capital
-- [ ] Job planifié `CheckLoanDefaults` : active → defaulted après `loan_default_delay_days`
-- [ ] Tests PHPUnit Loans
+- [ ] Job `CheckLoanDefaults` : active → defaulted après `loan_default_delay_days`
+- [ ] Job `CheckLoanRenewals` : détecte prêts non soldés à due_date → notifie trésorier
+- [ ] Tests PHPUnit (Cycles + Savings + Loans)
 
 ---
 

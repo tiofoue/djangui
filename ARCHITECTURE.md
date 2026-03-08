@@ -76,6 +76,19 @@ djangui/
 │   │   │   ├── Models/InvitationModel.php
 │   │   │   ├── Services/MemberService.php
 │   │   │   └── Config/Routes.php
+│   │   ├── Seances/
+│   │   │   ├── Controllers/SeanceController.php
+│   │   │   ├── Controllers/AssembleeController.php
+│   │   │   ├── Controllers/AgendaItemController.php
+│   │   │   ├── Models/SeanceModel.php
+│   │   │   ├── Models/SeanceParticipantModel.php
+│   │   │   ├── Models/AssembleeModel.php
+│   │   │   ├── Models/AssembleeParticipantModel.php
+│   │   │   ├── Models/AgendaItemModel.php
+│   │   │   ├── Services/SeanceService.php     # getCurrent(), clôture, snapshot épargne, réassignation ops
+│   │   │   ├── Services/AssembleeService.php
+│   │   │   ├── Services/AgendaService.php     # génération points système, suggest()
+│   │   │   └── Config/Routes.php
 │   │   ├── Tontines/
 │   │   │   ├── Controllers/TontineController.php
 │   │   │   ├── Controllers/SessionController.php
@@ -146,7 +159,9 @@ djangui/
 │   │   └── CsvExporter.php      # Export CSV générique
 │   └── Commands/
 │       ├── OpenDueSessions.php       # Job planifié : pending → open/auction au matin de session_date
+│       ├── CloseOverdueSeances.php   # Job planifié : clôture auto séances non fermées à 23h59 de actual_date
 │       ├── CheckLoanDefaults.php     # Job planifié : active → defaulted si retard > loan_default_delay_days
+│       ├── CheckLoanRenewals.php     # Job planifié : détecte prêts non soldés à due_date → notifie trésorier
 │       └── CheckSubscriptions.php   # Job planifié : expiration abonnement → downgrade vers plan free
 ├── public/
 │   └── uploads/

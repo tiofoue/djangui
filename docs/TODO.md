@@ -58,7 +58,7 @@
 - [x] `PlanModel` + `SubscriptionModel` + `PlanService`
 - [x] `SubscriptionController` : GET/POST/DELETE /associations/{id}/subscription
 - [x] `QuotaFilter` middleware (max_members, max_tontines, max_entities, features)
-- [ ] Tests Associations + Plans
+- [ ] Tests Associations + Plans ← reporté Sprint 2 (à écrire avant ou pendant les tontines)
 
 ### ✅ Module Members — TERMINÉ (2026-03-07)
 **Code :**
@@ -77,25 +77,58 @@
 
 ---
 
+## Sprint 2 — Séances & Assemblées
+
+### Module Séances
+**Migrations :**
+- [ ] `public_holidays` (country_code, association_id nullable, date, label, is_recurring)
+- [ ] `seances` (scheduled_date, actual_date, status, clôture auto 23h59, seance_id sur tables financières)
+- [ ] `seance_participants`
+- [ ] `assemblees` (subject, scheduled_date, actual_date, status)
+- [ ] `assemblee_participants`
+- [ ] `agenda_items` (polymorphique meeting_type+meeting_id, is_system, is_deletable, status, comment)
+
+**Code :**
+- [ ] `SeanceService` : génération auto séances du cycle, getCurrent(), clôture (manuelle + job), réassignation opérations si cancelled, snapshot épargne à la clôture
+- [ ] `AgendaService` : génération points système, suggest() basé historique
+- [ ] `AssembleeService` : CRUD, report/annulation
+- [ ] Controllers : SeanceController, AssembleeController, AgendaItemController
+- [ ] Job `CloseOverdueSeances` : clôture auto à 23h59 de actual_date
+- [ ] Tests Séances & Assemblées
+
+**À définir (TODO Sprint ultérieur) :**
+- [ ] Notifications : déclencheurs (séance à venir, cotisation impayée, prêt en retard...), canaux (SMS/in-app), délais
+- [ ] Audit logs : liste des actions financières et administratives à tracer obligatoirement
+
+---
+
 ## Sprint 2 — Tontines & Bureau
 
 ### Module Tontines
 **Migrations :**
-- [ ] `tontines` (session_deadline_time, timezone)
+- [ ] `tontines` (session_deadline_time, timezone, is_presentielle, caisse_commune_type, caisse_commune_per_session_amount, caisse_commune_target, grace_period_hours)
 - [ ] `tontine_members` (left_at)
-- [ ] `tontine_sessions` (cycle_number NOT NULL DEFAULT 1, opened_at, UNIQUE(tontine_id, cycle_number, session_number))
-- [ ] `contributions` (UNIQUE(session_id, member_id))
+- [ ] `tontine_sessions` (cycle_number NOT NULL DEFAULT 1, seance_id NULL, present_count, moderated_by NULL, opened_at, UNIQUE(tontine_id, cycle_number, session_number))
+- [ ] `contributions` (payment_reference, UNIQUE(session_id, member_id))
+- [ ] `caisse_commune_transactions` (tontine_group is_presentielle uniquement)
 - [ ] `tontine_caisse_distributions` (cycle_number NOT NULL, UNIQUE(tontine_id, cycle_number, member_id))
 - [ ] `tontine_session_bids`, `tontine_session_beneficiaries`, `tontine_slot_demotions`
 
 **Code :**
 - [ ] `TontineService` : démarrage, génération sessions, clôture, reconduction
+- [ ] `TontineService` : `tontine_group` — seance_id=NULL, moderateur_id=NULL (modérateur implicite president/treasurer)
+- [ ] `TontineService` : caisse commune (`CaisseCommuneService` : crédit per_session auto + ad_hoc + solde)
+- [ ] `TontineService` : grace_period_hours pour pénalités non-présentielle
 - [ ] `RotationService` : random / manual / bidding / session_auction
 - [ ] `PenaltyCalculator` : 8 modes (fixed, fixed_per_day/week/month, percentage, percentage_per_day/week/month)
 - [ ] Résolution timezone effectif : `TontineService::getTimezone()` (tontine → association → plateforme)
 - [ ] Règle bidding : tous les membres doivent avoir bid_amount > 0 avant démarrage
 - [ ] Logique reconduction : incrémenter current_cycle, reset slots_received, nouvelles sessions
 - [ ] `BidController` : PUT /members/me/bid (bidding) + POST/GET /sessions/{sId}/bids (session_auction)
+- [ ] `TontineModeratorFilter` : chaîne fallback session.moderated_by → tontine.moderateur_id → president/treasurer
+- [ ] `PUT /tontines/{tId}/moderateur` : actif pour tontine_group (animateur permanent optionnel)
+- [ ] `PUT /sessions/{sId}/moderateur` : désignation animateur ponctuel pour une session (tontine_group uniquement)
+- [ ] Droits animateur délégué : présence + ordre du jour seulement (pas opérations financières)
 - [ ] Tests Tontines
 
 ### Module Bureau & Elections
@@ -165,8 +198,8 @@
 
 ### Jobs planifiés
 - [ ] `CheckLoanDefaults` : active → defaulted après loan_default_delay_days (configurable)
-- [ ] `TakeSavingsSnapshots` : déclenché au moment de chaque séance d'assemblée (snapshot solde cumulatif + loans_active)
-- [ ] `CheckLoanRenewals` : reconduction sur solde restant si non soldé à due_date (CAS 2)
+- [ ] `CheckLoanRenewals` : détecte prêts non soldés à due_date → notifie trésorier (c'est le trésorier qui décide de la reconduction via LoanService::forceRenew())
+> ~~`TakeSavingsSnapshots`~~ : supprimé — snapshots désormais déclenchés par `SeanceService` à la clôture de séance
 
 ---
 

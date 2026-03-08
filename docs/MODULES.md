@@ -297,13 +297,16 @@ où n = Durée en mois
 
 ### Workflow emprunt
 ```
-member    → POST /loans           (status: pending)
-treasurer → PUT  /loans/approve   (status: approved)
-treasurer → PUT  /loans/disburse  (status: active, disbursed_at = now(), génère échéancier)
-treasurer → PUT  /loans/reject    (status: rejected)
-treasurer → POST /repayments      (status: active → completed si soldé)
-→ [auto job] CheckLoanRenewals : crée nouveau loan (renewal_cap ou renewal_forced) si non soldé à due_date
-→ [treasurer/auto] clôture cycle : tous les loans actifs doivent être completed (status) avant closing → closed
+member    → POST /loans              (status: pending)
+treasurer → PUT  /loans/approve      (status: approved)
+treasurer → PUT  /loans/disburse     (status: active, disbursed_at = now(), génère échéancier)
+treasurer → PUT  /loans/reject       (status: rejected)
+treasurer → POST /repayments         (status: active → completed si soldé)
+treasurer → PUT  /loans/{lId}/renew        (CAS 1 : après remboursement complet → nouveau loan, source=renewal_cap, amount×(1+rate))
+treasurer → PUT  /loans/{lId}/force-renew  (CAS 2 : solde restant → nouveau loan, source=renewal_forced)
+[auto job] CheckLoanRenewals → détecte prêts non soldés à due_date → notifie trésorier (ne crée PAS de loan)
+[president] initiate-closing → bloqué si prêts active ou approved (defaulted tolérés)
+[president] close → bloqué si tout prêt active, approved ou defaulted → déclenche distribution intérêts
 ```
 
 ---
@@ -356,9 +359,10 @@ Lorsqu'un membre utilise son épargne comme garantie (`loan_guarantees.type = 's
 - À remboursement complet du prêt : `LoanService` appelle `SavingsService::releaseGuarantee()` → fonds débloqués
 
 ### Snapshots automatiques
-- Déclenchés par job planifié `TakeSavingsSnapshots` le jour de chaque séance d'assemblée
+- Déclenchés par `SeanceService` à la **clôture de chaque séance** (transition `status → held`, manuelle ou via job `CloseOverdueSeances`)
 - Ou manuellement par le trésorier (secours)
-- `loans_active` = true si `COUNT(loans WHERE association_id = X AND status = 'active') > 0`
+- `loans_active` = `1` si `COUNT(loans WHERE association_id = X AND status = 'active') > 0`, `0` sinon
+- Garantit que toutes les opérations rattachées à la séance sont intégrées avant la prise du snapshot
 
 ---
 

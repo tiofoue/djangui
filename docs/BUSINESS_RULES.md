@@ -72,6 +72,8 @@ Les SMS de notification incluent l'heure officielle avec l'abréviation timezone
 | Feature | tontine_group | association | federation |
 |---------|:---:|:---:|:---:|
 | Tontines | ✅ | ✅ | ✅ |
+| Caisse commune informelle | ✅* | ❌ | ❌ |
+| Séances formelles | ❌ | ✅ | ✅ |
 | Bureau & élections | ❌ | ✅ | ✅ |
 | Emprunts | ❌ | ✅ | ✅ |
 | Épargnes | ❌ | ✅ | ✅ |
@@ -81,6 +83,8 @@ Les SMS de notification incluent l'heure officielle avec l'abréviation timezone
 | Documents | ❌ | ✅ | ✅ |
 | Sous-associations | ❌ | ❌ | ✅ |
 | Validation statuts | ❌ | ✅ | ✅ |
+
+*Caisse commune : uniquement si la tontine a `is_presentielle = true`
 
 ### Workflow de création / validation par type
 
@@ -128,12 +132,30 @@ suspended      → active    (réhabilitation)
 > **Réservé aux entités de type `association` et `federation`.**
 > Les `tontine_group` n'ont pas accès à ce module.
 >
-> **Distinct du cycle de tontine** : le cycle d'activité de l'association (`association_cycles`) est l'exercice financier annuel qui encadre les épargnes et les prêts. Le cycle de tontine (`tontines.current_cycle`) est propre à chaque tontine et gère la rotation des bénéficiaires. Ces deux notions sont indépendantes.
+> **Distinct du cycle de tontine** : le cycle d'activité de l'association (`association_cycles`) est l'exercice financier qui encadre les épargnes et les prêts. Le cycle de tontine (`tontines.current_cycle`) est propre à chaque tontine et gère la rotation des bénéficiaires. Ces deux notions sont indépendantes.
 
-- Chaque association définit un **exercice** (période d'activité financière, ex. janvier→décembre)
-- Un seul cycle peut être `active` à la fois par association
-- Les emprunts, les épargnes et la distribution des intérêts sont tous rattachés au cycle actif
-- La `end_date` du cycle fixe la **date limite absolue** de remboursement de tous les prêts
+- Chaque association définit un **exercice** (période d'activité financière, ex. "Exercice 2024-2025" : décembre 2024 → novembre 2025)
+- Un seul exercice peut être `active` à la fois par association
+- Les emprunts, les épargnes et la distribution des intérêts sont tous rattachés à l'exercice actif
+- La `end_date` de l'exercice fixe la **date limite absolue** de remboursement de tous les prêts
+
+### Paramétrage de l'exercice
+
+Deux clés dans `association_settings` pilotent le calcul automatique des dates :
+
+- `cycle_start_month` (1–12, défaut : 1) — mois de démarrage de l'exercice (ex : 12 = décembre)
+- `cycle_duration_months` (défaut : 12) — durée en mois de chaque exercice
+
+À la création d'un exercice, le président fournit uniquement l'**année de départ**. `CycleService` calcule :
+```
+start_date = 1er jour du cycle_start_month de l'année fournie
+end_date   = start_date + cycle_duration_months − 1 jour
+label      = "Exercice YYYY-YYYY"  (année de start_date − année de end_date)
+```
+Exemple : `cycle_start_month = 12`, `cycle_duration_months = 12`, année fournie = 2024
+→ `start_date = 2024-12-01`, `end_date = 2025-11-30`, `label = "Exercice 2024-2025"`
+
+**Reconduction tacite** : si le président ne modifie pas `cycle_duration_months` entre deux exercices, la même durée s'applique automatiquement au prochain exercice. Les paramètres `cycle_start_month` et `cycle_duration_months` ne sont modifiables que **hors exercice actif** (entre la clôture du précédent et le démarrage du suivant).
 
 ### Cycle de vie d'un exercice
 ```
@@ -142,8 +164,15 @@ active → closing (initiation clôture : tous les prêts doivent être soldés)
 closing → closed (clôture effective : distribution intérêts + retrait épargnes)
 ```
 
-### Clôture de cycle — procédure
-1. Vérifier qu'aucun prêt n'est en statut `active`, `approved` ou `defaulted` → sinon blocage
+### Clôture de cycle — procédure en deux étapes
+
+**Étape 1 — `active → closing` (`initiate-closing`) :**
+- Bloqué si au moins un prêt est en statut `active` ou `approved`
+- Les prêts `defaulted` sont **tolérés** à cette étape (ils doivent être résolus avant la clôture finale)
+- Objectif : signaler la fin imminente de l'exercice, laisser le temps de résoudre les défauts
+
+**Étape 2 — `closing → closed` (`close`) :**
+1. Vérifier qu'aucun prêt n'est en statut `active`, `approved` ou `defaulted` → sinon blocage total
 2. Calculer le pro-rata des intérêts par membre (via snapshots)
 3. Créditer `savings_accounts.interest_earned` pour chaque membre
 4. Enregistrer les transactions `interest_payout` puis `withdrawal` (capital + intérêts)
@@ -152,6 +181,147 @@ closing → closed (clôture effective : distribution intérêts + retrait épar
 7. Nouveau cycle : le président crée un nouveau cycle `draft` → `active`, les membres déposent leurs nouvelles épargnes
 
 > **Remarque :** Les nouveaux dépôts d'épargne du cycle suivant se font **le même jour** que les retraits du cycle clôturé — il n'y a pas de rupture de continuité pour les membres.
+
+---
+
+## Séances & Assemblées
+
+### Séances — réunions financières récurrentes
+
+> **Réservé aux entités de type `association` et `federation`.** Un `tontine_group` ne bénéficie **pas** du module Séances. Ses réunions sont informelles et ne passent pas par ce module (voir section "Tontine Group" ci-dessous).
+
+Les séances sont les réunions périodiques au cours desquelles se déroulent les opérations financières : cotisations tontine, versements épargne, présence, remboursements de prêts, demandes de prêt, etc.
+
+#### Règle de récurrence
+
+Chaque association configure **une seule règle de récurrence** dans ses settings (`seance_recurrence_type`) :
+
+| Type | Description | Exemple |
+|------|-------------|---------|
+| `nth_weekday` | Nème jour de la semaine du mois | 2ème samedi, dernier dimanche |
+| `fixed_day` | Jour fixe du mois | Le 15 de chaque mois |
+
+Paramètres associés dans les settings :
+- `nth_weekday` → `seance_week_ordinal` (1|2|3|4|-1) + `seance_weekday` (1=lundi … 7=dimanche)
+- `fixed_day` → `seance_day_of_month` (1–31)
+
+#### Génération automatique
+
+À l'**activation d'un exercice**, `CycleService` génère automatiquement **toutes les séances du cycle** selon la règle de récurrence. Chaque séance générée a :
+- `scheduled_date` = date planifiée calculée (immuable, conservée pour l'historique)
+- `actual_date` = date effective (= `scheduled_date` tant que non reportée)
+- `status = scheduled`
+
+Si une séance générée tombe sur un **jour férié** (table `public_holidays` filtrée par le `country_code` de l'association), son statut est automatiquement mis à `needs_reschedule`. Le président ou trésorier décide alors : annuler ou reporter.
+
+#### Statuts d'une séance
+```
+scheduled        → held       (séance tenue)
+scheduled        → cancelled  (annulée définitivement)
+scheduled        → postponed  (reportée : actual_date mise à jour, postponed_reason renseigné)
+needs_reschedule → held | cancelled | postponed
+```
+
+#### Clôture d'une séance
+
+- **Clôture manuelle** : le trésorier ou président déclare la séance `held` — voie normale.
+- **Clôture automatique** : un job planifié (`CloseOverdueSeances`) clôture automatiquement toute séance non encore `held` à **23h59 de son `actual_date`** — filet de sécurité si oubli du trésorier.
+- Dans les deux cas, dès la clôture, les opérations financières suivantes sont rattachées à la séance suivante.
+
+**Édition post-clôture du compte-rendu :**
+Les champs administratifs (`start_time`, `end_time`, `notes`, `report_text`, `report_file`) restent **éditables après clôture** par le secrétaire général et les membres habilités, **jusqu'à la clôture de la séance suivante**. Une fois la séance suivante clôturée, le compte-rendu est **figé définitivement**.
+
+#### Report & annulation
+
+- **Reportée** (`postponed`) : `scheduled_date` reste inchangé (historique), `actual_date` = nouvelle date, `postponed_reason` obligatoire. Les opérations financières suivent la séance ; la clôture automatique s'applique sur la nouvelle `actual_date`.
+- **Annulée** (`cancelled`) : les opérations financières déjà rattachées sont **automatiquement réassignées à la séance suivante**.
+
+#### Contenu d'une séance
+- Ordre du jour (voir section dédiée ci-dessous)
+- Liste et nombre de participants (membres présents)
+- Heure de début et de fin (saisies après la tenue)
+- Notes / commentaires globaux
+- Rapport (texte saisi et/ou fichier uploadé)
+
+---
+
+### Assemblées — réunions ad hoc
+
+Les assemblées sont convoquées de façon **spontanée** pour un sujet précis (modification des textes, calcul et redistribution des intérêts/épargnes, élection, etc.).
+
+- La date est fixée par accord entre les membres, sans règle de récurrence
+- Une assemblée peut être reportée à une nouvelle date (même mécanique que les séances : `scheduled_date` immuable, `actual_date` = date effective)
+- Une assemblée et une séance **peuvent se tenir le même jour** — les deux sont des entités indépendantes
+- Le sujet (`subject`) est obligatoire à la création
+
+#### Contenu d'une assemblée
+- Ordre du jour (voir section dédiée ci-dessous)
+- Liste et nombre de participants
+- Heure de début et de fin
+- Notes / commentaires globaux
+- Rapport (texte saisi et/ou fichier uploadé)
+
+---
+
+### Ordre du jour
+
+Chaque séance et chaque assemblée dispose d'un **ordre du jour** composé de points ordonnés. C'est l'ordre du jour qui rythme la réunion ; chaque point commenté alimente directement la rédaction du rapport.
+
+#### Points système — séance
+
+Générés automatiquement à la création de chaque séance, dans l'ordre par défaut :
+
+| # | Point | Supprimable |
+|---|-------|-------------|
+| 1 | Prière d'ouverture | ✅ |
+| 2 | Appel / émargement | ✅ |
+| 3 | Lecture et adoption du rapport de la séance précédente | ✅ |
+| 4 | Opérations financières | ❌ |
+| 5 | Points divers | ✅ |
+| 6 | Nouvelles de la communauté | ✅ |
+| 7 | Astuces (santé, bien-être...) | ✅ |
+| 8 | Rafraîchissement | ✅ |
+| 9 | Prière de clôture | ✅ |
+
+#### Points système — assemblée
+
+Générés automatiquement à la création de chaque assemblée :
+
+| # | Point | Supprimable |
+|---|-------|-------------|
+| 1 | Prière d'ouverture | ✅ |
+| 2 | Appel / émargement | ✅ |
+| 3 | [Sujet de l'assemblée] | ❌ |
+| 4 | Points divers | ✅ |
+| 5 | Prière de clôture | ✅ |
+
+#### Règles
+
+- L'ordre des points est **modifiable** par le secrétaire général et les habilités
+- Des points **personnalisés** peuvent être insérés n'importe où entre les points système
+- Les points système supprimables peuvent être retirés d'une séance/assemblée spécifique
+- **"Opérations financières"** (séance) et **"[Sujet de l'assemblée]"** (assemblée) sont les seuls points non-supprimables
+- Chaque point a un **statut** (`pending` / `done` / `skipped`) mis à jour en temps réel pendant la réunion
+- Chaque point dispose d'un **champ commentaire** (`comment`) saisi par le secrétaire — l'ensemble des commentaires constitue le brouillon du rapport
+
+#### Suggestion automatique
+
+`AgendaService::suggest(association_id, type)` analyse les ordres du jour des séances/assemblées précédentes et propose les titres les plus fréquents dans leur ordre habituel. La suggestion est une base modifiable, pas un modèle figé.
+
+### Rattachement des opérations financières aux séances
+
+> **Règle fondamentale :** toute opération financière est rattachée à la **séance courante** de l'association, c'est-à-dire la séance dont le statut n'est pas encore `held` ou `cancelled`.
+
+- Tant qu'une séance n'est pas déclarée close (`held`), **toutes** les opérations financières lui sont rattachées — qu'elles soient effectuées le jour de la séance ou entre deux séances.
+- Dès qu'elle est déclarée close, la séance suivante (selon `actual_date` ASC) devient la séance courante et reçoit toutes les opérations ultérieures.
+
+Cette règle couvre : versements épargne, cotisations tontine en avance, remboursements de prêt, cotisations de solidarité.
+
+`SeanceService::getCurrent(association_id)` retourne la séance dont `status NOT IN ('held', 'cancelled')`, ordonnée par `actual_date ASC LIMIT 1`.
+
+**Cas particuliers :**
+- Si la séance courante est **reportée** (`postponed`) → elle reste la séance courante avec sa nouvelle `actual_date` ; les opérations continuent de lui être rattachées.
+- Si la séance courante est **annulée** (`cancelled`) → les opérations déjà rattachées sont réassignées automatiquement à la séance suivante.
 
 ---
 
@@ -172,9 +342,11 @@ Capital disponible = Σ(savings_accounts.balance) + Σ(savings_pool_entries acti
 Le trésorier consulte ce solde avant d'approuver tout nouvel emprunt.
 
 ### Snapshot d'avoir par séance
-À chaque séance d'assemblée, un snapshot est enregistré pour chaque compte épargne :
+Un snapshot est enregistré pour chaque compte épargne actif **au moment de la clôture de chaque séance** (transition `status → held`, qu'elle soit manuelle ou automatique à 23h59) :
 - `balance` = **solde cumulatif** du membre à cette date (Σ tous les dépôts depuis début de cycle + solde initial report du cycle précédent)
 - `loans_active` = `1` si au moins un prêt est actif dans l'association à cette date, `0` sinon
+
+> Le déclenchement au moment de la clôture garantit que toutes les opérations de la séance (y compris celles effectuées entre deux séances et rattachées à celle-ci) sont intégrées dans le snapshot avant sa prise.
 
 > Le solde cumulatif (et non le dépôt mensuel seul) est la base du pro-rata : un membre qui épargne tôt contribue davantage sur le long terme.
 
@@ -294,6 +466,14 @@ super_admin > président > trésorier = secrétaire général > commissaire aux 
 ---
 
 ## Tontines
+
+### Tontines & Séances
+
+> Cette section concerne uniquement les tontines des entités `association` et `federation`. Les tontines d'un `tontine_group` ont leur propre fonctionnement (voir section "Tontine Group").
+
+Une session tontine dans une `association` ou `federation` se tient **toujours dans le cadre d'une séance** de l'association (`tontine_sessions.seance_id` obligatoire pour ces types). Le `session_date` correspond à l'`actual_date` de la séance associée. Une séance peut contenir les sessions de **plusieurs tontines** simultanément — une association peut avoir plusieurs tontines actives en parallèle.
+
+Pour les tontines d'un `tontine_group`, `tontine_sessions.seance_id` est **NULL** (il n'y a pas de séance formelle).
 
 ### Création
 - Une association peut avoir plusieurs tontines simultanément
@@ -469,6 +649,122 @@ Exemple : caisse = 210 000 XAF, 21 parts totales
 - Une tontine peut être clôturée manuellement ou automatiquement à `end_date`
 - Une tontine ne peut pas être clôturée si des cotisations sont impayées (configurable)
 - En mode `session_auction` : la redistribution de la caisse est effectuée à la clôture
+
+---
+
+## Tontine Group — Spécificités
+
+> Les règles de cette section s'appliquent **uniquement** aux entités de type `tontine_group`. Elles sont **distinctes** des tontines organisées au sein d'une `association` ou `federation`.
+
+### Philosophie générale
+
+Le `tontine_group` est une entité informelle : « on se retrouve, on paie, on repart ». Pas de bureau élu, pas d'exercice financier, pas de séances formelles. La plateforme lui offre une traçabilité numérique légère sans imposer la lourdeur organisationnelle d'une association.
+
+### Modules disponibles / non disponibles
+
+| Module | tontine_group |
+|--------|:---:|
+| Tontines | ✅ |
+| Réunions informelles (présence optionnelle) | ✅ |
+| Caisse commune informelle | ✅ si `is_presentielle = true` |
+| Bureau & élections | ❌ |
+| Emprunts | ❌ |
+| Épargnes | ❌ |
+| Cycle d'activité (`association_cycles`) | ❌ |
+| Séances formelles (`seances`) | ❌ |
+| Caisse de solidarité | ❌ |
+| Main levée | ❌ |
+| Documents | ❌ |
+
+### Tontines présentielle vs non-présentielle
+
+Chaque tontine d'un `tontine_group` est classifiée selon son mode de tenue :
+
+| | `is_presentielle = true` | `is_presentielle = false` |
+|---|---|---|
+| **Réunion** | Physique (membres se déplacent) | À distance (paiement mobile, pas de déplacement) |
+| **Caisse commune** | ✅ Possible | ❌ Non applicable |
+| **Présence** | Optionnellement tracée | Non tracée |
+| **Heure limite paiement** | Fixée (`session_deadline_time`) | Peut être élargie (délai supplémentaire configurable) |
+
+### Modérateur — règle pour tontine_group
+
+Le modérateur d'une session est résolu selon une **chaîne de fallback à 3 niveaux** :
+
+```
+tontine_sessions.moderated_by   ← animateur désigné pour cette session uniquement
+  ↓ si NULL
+tontines.moderateur_id          ← animateur permanent de la tontine
+  ↓ si NULL
+president / treasurer           ← défaut implicite (toujours actif)
+```
+
+- Le président peut désigner un **animateur permanent** via `PUT /tontines/{tId}/moderateur` (champ `moderateur_id`).
+- Le président ou trésorier peut désigner un **animateur ponctuel** pour une session spécifique via `PUT /sessions/{sId}/moderateur` (champ `moderated_by`).
+- `TontineModeratorFilter` vérifie les 3 niveaux dans l'ordre ; le president et le treasurer passent **toujours** ce filtre.
+
+#### Permissions de l'animateur délégué (niveaux 1 et 2)
+
+L'animateur délégué a des droits **limités à la présence et à l'animation** :
+
+| Action | Animateur délégué | President / Treasurer |
+|--------|:-----------------:|:---------------------:|
+| Enregistrer le nombre de présents (`present_count`) | ✅ | ✅ |
+| Mettre à jour le statut des points de l'ordre du jour | ✅ | ✅ |
+| Saisir les commentaires sur les points d'ordre du jour | ✅ | ✅ |
+| Enregistrer des paiements / cotisations | ❌ | ✅ |
+| Ouvrir / clôturer une session | ❌ | ✅ |
+| Rétrograder un membre défaillant | ❌ | ✅ |
+| Enregistrer des mouvements caisse commune | ❌ | ✅ |
+
+> Les opérations financières restent la responsabilité exclusive du president ou du treasurer.
+
+### Réunions informelles
+
+Un `tontine_group` ne dispose **pas** du module `seances`. Ses sessions de tontine n'ont donc pas de `seance_id`. L'état `tontine_sessions.seance_id = NULL` est normal et attendu.
+
+Si la tontine est `is_presentielle = true`, le trésorier/président peut enregistrer optionnellement le **nombre de présents** sur la session (`tontine_sessions.present_count`) — simple comptage, sans liste nominative ni émargement.
+
+### Caisse commune informelle
+
+Disponible uniquement pour les tontines où `is_presentielle = true`.
+
+**Objectif :** collecter des fonds informels en marge de la tontine principale (frais de fonctionnement, pot commun, fonds d'entraide basique).
+
+**Type de collecte** (`caisse_commune_type`) :
+
+| Type | Déclenchement |
+|------|--------------|
+| `per_session` | Montant fixe collecté automatiquement à chaque session |
+| `ad_hoc` | Collecte ponctuelle initiée par le président/trésorier |
+| `both` | Les deux modes actifs simultanément |
+
+**Règles :**
+- Le trésorier ou le président enregistre les entrées et sorties (`caisse_commune_transactions`)
+- Tous les membres peuvent **consulter** le solde de la caisse
+- Une `target_amount` optionnelle peut être définie (objectif à atteindre — pour information, pas de blocage)
+- Les fonds sont distincts de la cagnotte de la tontine principale
+- En mode `session_auction` : la caisse commune est **séparée** de la caisse d'adjudication (`tontines.caisse_balance`) — deux caisses indépendantes
+
+### Référence de paiement (payment_reference)
+
+Pour les tontines `is_presentielle = false` ou les paiements effectués à distance, un champ **`payment_reference`** facultatif est disponible sur chaque cotisation (`contributions`) :
+- Saisie libre (numéro de transaction Mobile Money, référence virement, etc.)
+- Visible par tous les membres
+- Permet de justifier un paiement effectué sans présence physique
+
+### Délai de paiement étendu (non-présentielle)
+
+Pour les tontines `is_presentielle = false`, un **délai supplémentaire** peut être accordé aux membres avant que la cotisation ne soit considérée en retard :
+- Configuré via `tontines.grace_period_hours` (défaut : 0 = pas de délai)
+- La date de comptage des pénalités est décalée de `grace_period_hours` après `session_deadline_time`
+- Permet d'absorber les délais de transfert Mobile Money sans pénaliser le membre de bonne foi
+
+### Conversion de tontine entre cycles
+
+Lorsqu'une tontine change de type (ex: `is_presentielle` modifié, `caisse_commune_type` changé), la conversion n'est possible qu'**entre deux cycles** :
+- La conversion est **bloquée** si `caisse_commune_transactions` a un solde non nul (caisse doit être vidée avant)
+- Applicable uniquement au début d'un nouveau cycle (avant la première session)
 
 ---
 

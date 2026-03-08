@@ -30,8 +30,16 @@ contributions
 tontine_session_bids          -- enchères par séance (mode session_auction)
 tontine_caisse_distributions  -- redistribution caisse fin de cycle
 tontine_slot_demotions        -- rétrogradations par le modérateur
+caisse_commune_transactions   -- caisse commune informelle (tontine_group is_presentielle uniquement)
 
-association_cycles           -- exercices annuels (ou custom) de l'association
+association_cycles           -- exercices financiers de l'association (label: "Exercice YYYY-YYYY", dates calculées)
+
+public_holidays              -- jours fériés nationaux par pays + jours fériés locaux de l'association
+seances                      -- réunions périodiques récurrentes (pré-générées à l'activation du cycle)
+seance_participants          -- membres présents à une séance
+assemblees                   -- réunions ad hoc convoquées par sujet
+assemblee_participants       -- membres présents à une assemblée
+agenda_items                 -- points de l'ordre du jour (séance ou assemblée, système + personnalisés)
 
 loans
 loan_guarantees
@@ -144,8 +152,14 @@ Exemple : `"Num de Compte"` → key=`num_de_compte`, label=`"Num de Compte"`
 - `loan_default_delay_days` — nb de jours de retard avant mise en défaut automatique (défaut : 30)
 - `presence_amount` — montant de cotisation Présence par membre par séance d'assemblée (ex: 1000 XAF)
 - `savings_enabled` — true | false — active le module épargne pour l'association (défaut : false pour tontine_group)
-- `cycle_start_month` — mois de démarrage de l'exercice (1=janvier, défaut : 1)
+- `cycle_start_month` — mois de démarrage de l'exercice (1–12, défaut : 1 = janvier) — utilisé avec l'année de départ pour calculer `start_date`
+- `cycle_duration_months` — durée en mois de chaque exercice (défaut : 12) — modifiable uniquement entre deux exercices ; si non modifié, la valeur est reconduite tacitement au prochain exercice
 - `loan_interest_distribution` — pourcentage des intérêts reversés aux épargnants (défaut : 1.0 = 100%)
+- `country_code` — code ISO 3166-1 alpha-2 du pays principal de l'association (ex: CM) — utilisé pour filtrer les jours fériés nationaux
+- `seance_recurrence_type` — 'nth_weekday' | 'fixed_day' — règle de récurrence des séances
+- `seance_week_ordinal` — 1|2|3|4|-1 (pour nth_weekday ; -1 = dernier) — Nème occurrence du jour dans le mois
+- `seance_weekday` — 1–7 (1=lundi … 7=dimanche, pour nth_weekday)
+- `seance_day_of_month` — 1–31 (pour fixed_day)
 
 ### `association_members`
 ```sql
@@ -304,9 +318,9 @@ created_at      DATETIME
 id              BIGINT UNSIGNED PK AUTO_INCREMENT
 association_id  BIGINT UNSIGNED FK → associations.id
 cycle_number    INT UNSIGNED NOT NULL
-label           VARCHAR(100) NOT NULL              -- ex: "Exercice 2026"
-start_date      DATE NOT NULL
-end_date        DATE NOT NULL
+label           VARCHAR(100) NOT NULL              -- auto-généré : "Exercice YYYY-YYYY" (ex: "Exercice 2024-2025")
+start_date      DATE NOT NULL                      -- calculé : 1er jour du cycle_start_month de l'année saisie
+end_date        DATE NOT NULL                      -- calculé : start_date + cycle_duration_months − 1 jour
 status          ENUM('draft','active','closing','closed') DEFAULT 'draft'
 -- draft   : en préparation
 -- active  : exercice en cours (un seul actif par association)
@@ -319,6 +333,7 @@ created_at      DATETIME
 updated_at      DATETIME
 UNIQUE(association_id, cycle_number)
 -- Index : (association_id, status) pour récupérer le cycle actif
+-- Note : start_date et end_date sont calculés par CycleService depuis cycle_start_month + année fournie + cycle_duration_months
 ```
 
 ---
@@ -337,20 +352,28 @@ beneficiaries_per_session   INT UNSIGNED DEFAULT 1           -- nb de bénéfici
 eligibility_rule            ENUM('default','custom') DEFAULT 'default'
 -- default : slot K éligible à K/X × total_sessions
 -- custom  : défini manuellement par le créateur
-caisse_balance              DECIMAL(15,2) DEFAULT 0          -- cumul caisse (session_auction)
+caisse_balance              DECIMAL(15,2) DEFAULT 0          -- cumul caisse (session_auction uniquement)
 auto_renew                  TINYINT(1) DEFAULT 1             -- reconduction tacite
 max_cycles                  INT UNSIGNED NULL                -- NULL = illimité
 current_cycle               INT UNSIGNED DEFAULT 1
-moderateur_id               BIGINT UNSIGNED NULL FK → users.id  -- modérateur désigné de la tontine
+moderateur_id               BIGINT UNSIGNED NULL FK → users.id  -- animateur permanent désigné (association/federation : modérateur tontine ; tontine_group : animateur permanent, optionnel)
 start_date                  DATE NOT NULL
 end_date                    DATE NULL
 max_members                 INT UNSIGNED NULL
 session_deadline_time       TIME DEFAULT '23:59:00'             -- heure limite de paiement le jour de la session
+grace_period_hours          TINYINT UNSIGNED DEFAULT 0          -- délai supplémentaire avant pénalité (tontine_group non-présentielle ; défaut 0)
 timezone                    VARCHAR(50) NULL                    -- fuseau horaire (NULL = hérite de l'association)
 status                      ENUM('draft','active','completed','cancelled') DEFAULT 'draft'
+-- Champs réservés aux tontines de tontine_group
+is_presentielle             TINYINT(1) DEFAULT 1             -- 1 = tontine physique, 0 = à distance (tontine_group uniquement)
+caisse_commune_type         ENUM('per_session','ad_hoc','both') NULL  -- NULL si is_presentielle = 0 ou association/federation
+caisse_commune_per_session_amount DECIMAL(15,2) NULL         -- montant fixe collecté par session si type = per_session|both
+caisse_commune_target       DECIMAL(15,2) NULL               -- objectif optionnel (indicatif, pas de blocage)
 created_by                  BIGINT UNSIGNED FK → users.id
 created_at                  DATETIME
 updated_at                  DATETIME
+-- Note : caisse commune disponible uniquement si association.type = tontine_group AND is_presentielle = 1
+-- Note : moderateur_id toujours NULL pour tontine_group (modérateur implicite = president/treasurer)
 ```
 
 ### `tontine_session_bids` — Enchères par séance (mode session_auction)
@@ -377,6 +400,21 @@ amount_received DECIMAL(15,2) NOT NULL    -- part reçue = total_caisse / SUM(sh
 distributed_at  DATETIME NOT NULL
 created_at      DATETIME
 UNIQUE(tontine_id, cycle_number, member_id)
+```
+
+### `caisse_commune_transactions` — Caisse commune informelle (tontine_group présentielle)
+```sql
+id              BIGINT UNSIGNED PK AUTO_INCREMENT
+tontine_id      BIGINT UNSIGNED FK → tontines.id
+session_id      BIGINT UNSIGNED NULL FK → tontine_sessions.id  -- NULL si collecte ad_hoc hors session
+type            ENUM('credit','debit') NOT NULL
+amount          DECIMAL(15,2) NOT NULL
+balance_after   DECIMAL(15,2) NOT NULL
+reason          VARCHAR(255) NULL         -- motif de la dépense ou de la collecte
+recorded_by     BIGINT UNSIGNED FK → users.id
+created_at      DATETIME
+-- Contrainte : disponible uniquement pour tontine_group + is_presentielle = 1
+-- Index : (tontine_id, created_at)
 ```
 
 ### `tontine_members`
@@ -412,17 +450,24 @@ created_at      DATETIME
 ```sql
 id                  BIGINT UNSIGNED PK AUTO_INCREMENT
 tontine_id          BIGINT UNSIGNED FK → tontines.id
+seance_id           BIGINT UNSIGNED NULL FK → seances.id  -- séance formelle liée (obligatoire pour association/federation, NULL pour tontine_group)
 cycle_number        INT UNSIGNED NOT NULL DEFAULT 1   -- numéro du cycle auquel appartient cette session
 session_number      INT NOT NULL                      -- numéro de séance dans le cycle
 session_date        DATE NOT NULL
 total_collected     DECIMAL(15,2) DEFAULT 0
 auction_winning_bid DECIMAL(15,2) NULL    -- montant adjugé par le gagnant de l'enchère (session_auction)
 caisse_contribution DECIMAL(15,2) NULL    -- montant effectivement versé en caisse (= auction_winning_bid ; séparé pour traçabilité)
+present_count       TINYINT UNSIGNED NULL -- nombre de présents (optionnel, tontine_group is_presentielle uniquement)
+moderated_by        BIGINT UNSIGNED NULL FK → users.id  -- animateur ponctuel désigné pour cette session (optionnel, tontine_group uniquement)
+-- fallback : moderated_by → tontines.moderateur_id → president/treasurer
+-- droits animateur délégué : présence + ordre du jour uniquement (pas d'opérations financières)
 status              ENUM('pending','open','auction','closed') DEFAULT 'pending'
 notes               TEXT NULL
 opened_at           DATETIME NULL
 closed_at           DATETIME NULL
 UNIQUE(tontine_id, cycle_number, session_number)
+-- Note (association/federation) : seance_id obligatoire — une session tontine se tient dans le cadre d'une séance
+-- Note (tontine_group) : seance_id = NULL, present_count + moderated_by optionnels
 ```
 
 ### `tontine_session_beneficiaries` — Bénéficiaires par séance (supporte N bénéficiaires)
@@ -439,20 +484,126 @@ UNIQUE(session_id, slot_number)
 
 ### `contributions`
 ```sql
+id                  BIGINT UNSIGNED PK AUTO_INCREMENT
+session_id          BIGINT UNSIGNED FK → tontine_sessions.id
+tontine_id          BIGINT UNSIGNED FK → tontines.id
+member_id           BIGINT UNSIGNED FK → users.id
+seance_id           BIGINT UNSIGNED NULL FK → seances.id  -- séance de comptabilisation (association/federation uniquement ; NULL pour tontine_group)
+amount_due          DECIMAL(15,2) NOT NULL
+amount_paid         DECIMAL(15,2) DEFAULT 0
+penalty             DECIMAL(15,2) DEFAULT 0
+status              ENUM('pending','partial','paid','late') DEFAULT 'pending'
+paid_at             DATETIME NULL
+payment_method      VARCHAR(50) NULL
+payment_reference   VARCHAR(255) NULL   -- référence optionnelle (numéro transaction Mobile Money, virement, etc.) — visible par tous les membres
+recorded_by         BIGINT UNSIGNED FK → users.id NULL
+created_at          DATETIME
+updated_at          DATETIME
+UNIQUE(session_id, member_id)
+-- Note (association/federation) : seance_id renseigné quand le paiement est effectué entre deux séances
+-- Note (tontine_group) : seance_id = NULL ; payment_reference utile pour paiements à distance
+```
+
+---
+
+### `public_holidays`
+```sql
 id              BIGINT UNSIGNED PK AUTO_INCREMENT
-session_id      BIGINT UNSIGNED FK → tontine_sessions.id
-tontine_id      BIGINT UNSIGNED FK → tontines.id
-member_id       BIGINT UNSIGNED FK → users.id
-amount_due      DECIMAL(15,2) NOT NULL
-amount_paid     DECIMAL(15,2) DEFAULT 0
-penalty         DECIMAL(15,2) DEFAULT 0
-status          ENUM('pending','partial','paid','late') DEFAULT 'pending'
-paid_at         DATETIME NULL
-payment_method  VARCHAR(50) NULL
-recorded_by     BIGINT UNSIGNED FK → users.id NULL
+country_code    CHAR(2) NULL       -- NULL = jour férié local propre à une association
+association_id  BIGINT UNSIGNED NULL FK → associations.id  -- NULL = national
+date            DATE NOT NULL
+label           VARCHAR(191) NOT NULL
+is_recurring    TINYINT(1) DEFAULT 1  -- 1 = se répète chaque année (même mois/jour), 0 = date unique
+created_at      DATETIME
+-- Index : (country_code, date), (association_id, date)
+-- Exemples nationaux CM : 2026-01-01 "Nouvel An", 2026-05-20 "Fête nationale", 2026-12-25 "Noël"
+```
+
+### `seances`
+```sql
+id              BIGINT UNSIGNED PK AUTO_INCREMENT
+association_id  BIGINT UNSIGNED FK → associations.id
+cycle_id        BIGINT UNSIGNED FK → association_cycles.id
+scheduled_date  DATE NOT NULL        -- date originale planifiée (immuable)
+actual_date     DATE NOT NULL        -- date effective (= scheduled_date si non reportée)
+start_time      TIME NULL            -- heure de début (saisie après tenue)
+end_time        TIME NULL            -- heure de fin (saisie après tenue)
+status          ENUM('scheduled','needs_reschedule','postponed','held','cancelled') DEFAULT 'scheduled'
+postponed_reason TEXT NULL           -- obligatoire si status = postponed
+participant_count INT UNSIGNED NULL  -- nombre de présents (saisi à la clôture)
+notes           TEXT NULL
+report_text     TEXT NULL            -- rapport saisi
+report_file     VARCHAR(255) NULL    -- rapport uploadé (chemin)
+created_by      BIGINT UNSIGNED FK → users.id
 created_at      DATETIME
 updated_at      DATETIME
-UNIQUE(session_id, member_id)
+-- Index : (association_id, actual_date), (cycle_id, status)
+-- Note : séances pré-générées par CycleService à l'activation du cycle
+-- Note : la séance courante = première séance dont status NOT IN ('held','cancelled') ORDER BY actual_date ASC
+-- Note : si cancelled, les opérations financières déjà rattachées → réassignées à la séance suivante
+-- Note : tant que status ≠ held, toute nouvelle opération financière de l'association lui est rattachée
+```
+
+### `seance_participants`
+```sql
+id          BIGINT UNSIGNED PK AUTO_INCREMENT
+seance_id   BIGINT UNSIGNED FK → seances.id
+member_id   BIGINT UNSIGNED FK → users.id
+created_at  DATETIME
+UNIQUE(seance_id, member_id)
+```
+
+### `assemblees`
+```sql
+id              BIGINT UNSIGNED PK AUTO_INCREMENT
+association_id  BIGINT UNSIGNED FK → associations.id
+cycle_id        BIGINT UNSIGNED NULL FK → association_cycles.id  -- NULL si hors exercice actif
+subject         VARCHAR(255) NOT NULL  -- sujet obligatoire
+scheduled_date  DATE NOT NULL          -- date initiale convenue (immuable)
+actual_date     DATE NOT NULL          -- date effective (= scheduled_date si non reportée)
+start_time      TIME NULL
+end_time        TIME NULL
+status          ENUM('scheduled','postponed','held','cancelled') DEFAULT 'scheduled'
+postponed_reason TEXT NULL
+participant_count INT UNSIGNED NULL
+notes           TEXT NULL
+report_text     TEXT NULL
+report_file     VARCHAR(255) NULL
+created_by      BIGINT UNSIGNED FK → users.id
+created_at      DATETIME
+updated_at      DATETIME
+-- Index : (association_id, actual_date)
+-- Note : peut coïncider avec une séance (entités indépendantes)
+```
+
+### `assemblee_participants`
+```sql
+id              BIGINT UNSIGNED PK AUTO_INCREMENT
+assemblee_id    BIGINT UNSIGNED FK → assemblees.id
+member_id       BIGINT UNSIGNED FK → users.id
+created_at      DATETIME
+UNIQUE(assemblee_id, member_id)
+```
+
+### `agenda_items`
+```sql
+id              BIGINT UNSIGNED PK AUTO_INCREMENT
+association_id  BIGINT UNSIGNED FK → associations.id
+meeting_type    ENUM('seance','assemblee') NOT NULL
+meeting_id      BIGINT UNSIGNED NOT NULL         -- polymorphic : seances.id ou assemblees.id
+order           TINYINT UNSIGNED NOT NULL        -- position dans l'ordre du jour (1, 2, 3...)
+title           VARCHAR(255) NOT NULL            -- intitulé du point
+is_system       TINYINT(1) DEFAULT 0             -- 1 = généré automatiquement par le système
+is_deletable    TINYINT(1) DEFAULT 1             -- 0 = non supprimable (ex: "Opérations financières")
+status          ENUM('pending','done','skipped') DEFAULT 'pending'
+comment         TEXT NULL                        -- commentaire du secrétaire sur ce point (alimente le rapport)
+created_at      DATETIME
+updated_at      DATETIME
+-- Index : (meeting_type, meeting_id, order)
+-- Points système séance (is_system=1) : Prière ouverture, Appel/émargement, Lecture rapport précédent,
+--   Opérations financières (is_deletable=0), Points divers, Nouvelles communauté, Astuces, Rafraîchissement, Prière clôture
+-- Points système assemblée (is_system=1) : Prière ouverture, Appel/émargement,
+--   [Sujet assemblée] (is_deletable=0), Points divers, Prière clôture
 ```
 
 ---
@@ -507,6 +658,7 @@ updated_at           DATETIME
 ```sql
 id              BIGINT UNSIGNED PK AUTO_INCREMENT
 loan_id         BIGINT UNSIGNED FK → loans.id
+seance_id       BIGINT UNSIGNED NULL FK → seances.id  -- séance de comptabilisation (prochaine séance à la date du paiement)
 installment_no  INT NOT NULL
 due_date        DATE NOT NULL
 amount_due      DECIMAL(15,2) NOT NULL
@@ -545,15 +697,16 @@ UNIQUE(cycle_id, member_id)
 id                  BIGINT UNSIGNED PK AUTO_INCREMENT
 account_id          BIGINT UNSIGNED FK → savings_accounts.id
 association_id      BIGINT UNSIGNED FK → associations.id
+seance_id           BIGINT UNSIGNED NULL FK → seances.id  -- séance de comptabilisation (prochaine séance à la date de l'opération)
 type                ENUM('deposit','withdrawal','interest_payout','presence') NOT NULL
--- deposit          : dépôt d'épargne variable (séance courante)
+-- deposit          : dépôt d'épargne (peut être effectué entre deux séances → rattaché à la prochaine)
 -- withdrawal       : retrait capital en fin de cycle
 -- interest_payout  : versement de la part d'intérêts en fin de cycle
--- presence         : cotisation versée à chaque séance d'assemblée (frais de fonctionnement, non inclus pro-rata intérêts)
+-- presence         : cotisation de présence (frais de fonctionnement, non inclus pro-rata intérêts)
 amount              DECIMAL(15,2) NOT NULL
 balance_after       DECIMAL(15,2) NOT NULL
-session_date        DATE NOT NULL              -- date de la séance ou opération
-tontine_session_id  BIGINT UNSIGNED NULL FK → tontine_sessions.id  -- si lié à une séance tontine
+operation_date      DATE NOT NULL              -- date réelle de l'opération (peut différer de actual_date de la séance)
+tontine_session_id  BIGINT UNSIGNED NULL FK → tontine_sessions.id  -- si lié à une session tontine spécifique
 payment_method      VARCHAR(50) NULL
 notes               TEXT NULL
 recorded_by         BIGINT UNSIGNED FK → users.id
@@ -607,8 +760,9 @@ updated_at      DATETIME
 id              BIGINT UNSIGNED PK AUTO_INCREMENT
 fund_id         BIGINT UNSIGNED FK → solidarity_funds.id
 member_id       BIGINT UNSIGNED FK → users.id
+seance_id       BIGINT UNSIGNED NULL FK → seances.id  -- séance de comptabilisation (prochaine séance à la date de l'opération)
 amount          DECIMAL(15,2) NOT NULL
-contribution_date DATE NOT NULL
+operation_date  DATE NOT NULL   -- date réelle du versement (peut différer de actual_date de la séance)
 reason          VARCHAR(255) NULL
 payment_method  VARCHAR(50) NULL
 recorded_by     BIGINT UNSIGNED FK → users.id NULL
