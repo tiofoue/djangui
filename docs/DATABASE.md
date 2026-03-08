@@ -362,10 +362,12 @@ end_date                    DATE NULL
 max_members                 INT UNSIGNED NULL
 session_deadline_time       TIME DEFAULT '23:59:00'             -- heure limite de paiement le jour de la session
 grace_period_hours          TINYINT UNSIGNED DEFAULT 0          -- délai supplémentaire avant pénalité (tontine_group non-présentielle ; défaut 0)
-penalty_type                ENUM('fixed','fixed_per_day','fixed_per_week','fixed_per_month','percentage','percentage_per_day','percentage_per_week','percentage_per_month') DEFAULT 'fixed'
-penalty_value               DECIMAL(10,4) DEFAULT 0             -- 0 = aucune pénalité (défaut) ; montant XAF pour fixed*, taux décimal pour percentage*
+penalty_type                ENUM('fixed','fixed_per_day','fixed_per_week','fixed_per_month','percentage','percentage_per_day','percentage_per_week','percentage_per_month') NULL
+penalty_value               DECIMAL(10,4) NULL
+-- NULL = fallback vers association_settings.late_penalty_type/value (association/federation)
+-- tontine_group : valeur directe (défaut 'fixed'/0 = aucune pénalité)
 -- pénalité plafonnée à amount_due (enforced par PenaltyCalculator)
--- destination : présentielle → caisse commune | non-présentielle → pot de la session
+-- destination : présentielle → caisse commune (tontine_group) | non-présentielle → pot session | association → pot session
 renewal_window_days         TINYINT UNSIGNED DEFAULT 7          -- nb de jours après dernière session pour modifier parts / se désinscrire / rejoindre
 timezone                    VARCHAR(50) NULL                    -- fuseau horaire (NULL = hérite de l'association)
 status                      ENUM('draft','active','completed','cancelled') DEFAULT 'draft'
@@ -427,7 +429,9 @@ created_at      DATETIME
 id                      BIGINT UNSIGNED PK AUTO_INCREMENT
 tontine_id              BIGINT UNSIGNED FK → tontines.id
 user_id                 BIGINT UNSIGNED FK → users.id
-shares                  INT UNSIGNED DEFAULT 1   -- nombre de parts souscrites
+shares                  INT UNSIGNED DEFAULT 1   -- nombre de parts souscrites (cycle en cours)
+pending_shares          INT UNSIGNED NULL         -- modification de parts demandée pour le prochain cycle (association/federation : requiert approbation)
+shares_change_status    ENUM('pending_approval','approved','rejected') NULL  -- NULL si aucune demande en cours
 bid_amount              DECIMAL(15,2) NULL        -- enchère en amont (mode bidding)
 slots_received          INT UNSIGNED DEFAULT 0    -- slots déjà perçus ce cycle
 is_active               TINYINT(1) DEFAULT 1
@@ -447,7 +451,8 @@ member_id       BIGINT UNSIGNED FK → users.id         -- membre rétrogradé
 old_session_id  BIGINT UNSIGNED FK → tontine_sessions.id
 new_session_id  BIGINT UNSIGNED FK → tontine_sessions.id
 reason          TEXT NOT NULL
-actioned_by     BIGINT UNSIGNED FK → users.id          -- modérateur ou trésorier/président
+is_automatic    TINYINT(1) DEFAULT 0   -- 1 = rétrogradation auto (non-paiement clôture session, association/federation)
+actioned_by     BIGINT UNSIGNED NULL FK → users.id  -- NULL si is_automatic = 1
 created_at      DATETIME
 ```
 

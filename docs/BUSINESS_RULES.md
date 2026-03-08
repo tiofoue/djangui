@@ -626,7 +626,7 @@ Exemple : caisse = 210 000 XAF, 21 parts totales
 - En fin de cycle : `slots_received` de tous les membres est remis à 0 (reconduction ou nouveau cycle)
 
 ### Membre défaillant & Modérateur de tontine
-- Chaque tontine peut désigner un **modérateur** (membre de la tontine) chargé de la discipline
+- Chaque tontine peut désigner un **modérateur** (membre actif inscrit à la tontine) chargé de la discipline
 - Le modérateur peut **rétrograder** un membre défaillant (n'ayant pas cotisé sa ou ses parts) dans l'ordre de rotation
 - La rétrogradation décale le slot du défaillant vers une séance ultérieure
 - L'action de rétrogradation est **loguée et justifiée** (motif obligatoire)
@@ -649,6 +649,60 @@ Exemple : caisse = 210 000 XAF, 21 parts totales
 - Une tontine peut être clôturée manuellement ou automatiquement à `end_date`
 - Une tontine ne peut pas être clôturée si des cotisations sont impayées (configurable)
 - En mode `session_auction` : la redistribution de la caisse est effectuée à la clôture
+
+---
+
+## Tontines — Association & Fédération — Spécificités
+
+> Les règles de cette section s'appliquent **uniquement** aux tontines des entités de type `association` et `federation`. Elles complètent ou remplacent les règles générales de la section "Tontines" ci-dessus.
+
+### Chevauchement de cycles d'activité
+
+Une tontine d'association **n'est pas rattachée à un cycle d'activité** (`tontines` n'a pas de `cycle_id`). Elle peut démarrer dans un exercice et se terminer dans un autre — ses sessions sont liées à des séances, qui elles appartiennent à des cycles, mais la tontine s'étend librement.
+
+### Modérateur
+
+- Désigné parmi les **membres actifs inscrits à la tontine** uniquement
+- Un membre ne peut pas modérer plus de **2 tontines simultanément lors d'une même séance**
+- La désignation est **permanente pour la tontine** (pas par session) — modifiable à tout moment par le président ou trésorier
+- En l'absence du modérateur lors d'une séance : le président ou trésorier prend le relais automatiquement (`TontineModeratorFilter`)
+- `TontineService` valide à la désignation : le candidat ne modère pas déjà 2 autres tontines actives dans la même séance
+
+### Pénalités — fallback depuis association_settings
+
+Les règles de pénalité suivent une **chaîne de fallback** :
+
+```
+tontines.penalty_type / penalty_value (non NULL)  → override par tontine
+  ↓ si NULL
+association_settings.late_penalty_type / value     → règle globale de l'association
+```
+
+Permet à une association avec plusieurs tontines de définir des règles différentes par tontine. Sans configuration sur la tontine → la règle globale `association_settings` s'applique.
+
+### Non-contribution — rétrogradation automatique
+
+Règle plus stricte qu'en `tontine_group` : à la clôture de chaque session, tout membre n'ayant **pas payé** est **automatiquement rétrogradé** au dernier slot disponible du cycle en cours.
+
+- La rétrogradation est loguée dans `tontine_slot_demotions` avec motif `auto_non_payment`
+- Le président/trésorier peut annuler la rétrogradation manuellement si justifiée
+
+### Remise des gains
+
+Même logique que pour une tontine présentielle : la **clôture de session = remise implicite** au bénéficiaire (`received_at` = horodatage de clôture, `amount_received` = `total_collected`).
+
+### Parts — modification entre cycles avec approbation
+
+Les parts (`shares`) sont modifiables entre deux cycles uniquement (pendant la fenêtre `renewal_window_days`), mais la modification requiert une **approbation explicite du trésorier ou président** — contrairement au `tontine_group` où la modification est libre.
+
+Workflow :
+```
+Membre soumet demande de modification de parts
+  → status = pending_approval
+Trésorier/Président approuve ou refuse
+  → status = approved → effectif au cycle suivant
+  → status = rejected → parts inchangées
+```
 
 ---
 

@@ -136,6 +136,10 @@
 - [ ] `PUT /sessions/{sId}/disburse` : remise explicite au bénéficiaire (non-présentielle obligatoire, bloque clôture)
 - [ ] Clôture présentielle : renseigner amount_received + received_at automatiquement à la clôture
 - [ ] `TontineModeratorFilter` : chaîne fallback session.moderated_by → tontine.moderateur_id → president/treasurer
+- [ ] Modérateur association/fed : valider membre actif inscrit + max 2 tontines/séance à la désignation
+- [ ] Rétrogradation automatique à la clôture session (association/federation, motif auto_non_payment)
+- [ ] Pénalités : fallback tontines.penalty_type → association_settings pour association/federation
+- [ ] Parts : modification avec approbation trésorier/président (association/federation) via pending_shares + shares_change_status
 - [ ] `PUT /tontines/{tId}/moderateur` : actif pour tontine_group (animateur permanent optionnel)
 - [ ] `PUT /sessions/{sId}/moderateur` : désignation animateur ponctuel pour une session (tontine_group uniquement)
 - [ ] Droits animateur délégué : présence + ordre du jour seulement (pas opérations financières)
