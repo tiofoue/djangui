@@ -368,7 +368,8 @@ penalty_value               DECIMAL(10,4) NULL
 -- tontine_group : valeur directe (défaut 'fixed'/0 = aucune pénalité)
 -- pénalité plafonnée à amount_due (enforced par PenaltyCalculator)
 -- destination : présentielle → caisse commune (tontine_group) | non-présentielle → pot session | association → pot session
-renewal_window_days         TINYINT UNSIGNED DEFAULT 7          -- nb de jours après dernière session pour modifier parts / se désinscrire / rejoindre
+renewal_window_days             TINYINT UNSIGNED DEFAULT 7      -- nb de jours après dernière session pour modifier parts / se désinscrire / rejoindre
+close_requires_full_payment     TINYINT(1) DEFAULT 1            -- 1 = clôture bloquée si cotisations impayées (défaut strict pour association/federation)
 timezone                    VARCHAR(50) NULL                    -- fuseau horaire (NULL = hérite de l'association)
 status                      ENUM('draft','active','completed','cancelled') DEFAULT 'draft'
 -- Champs réservés aux tontines de tontine_group

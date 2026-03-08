@@ -691,6 +691,33 @@ Règle plus stricte qu'en `tontine_group` : à la clôture de chaque session, to
 
 Même logique que pour une tontine présentielle : la **clôture de session = remise implicite** au bénéficiaire (`received_at` = horodatage de clôture, `amount_received` = `total_collected`).
 
+### Saisie des paiements en séance
+
+Les cotisations tontine sont enregistrées sous le point **"Opérations financières"** de l'ordre du jour de la séance.
+
+- Même checklist qu'en présentielle : une action par membre (`POST /sessions/{sId}/pay`) confirme le paiement
+- Mode de paiement enregistré sur la cotisation (optionnel : cash, MoMo, virement)
+- **Séance multi-tontines** : vue par tontine (une tontine à la fois) — chaque tontine ayant ses propres montants et membres, une vue consolidée serait trompeuse
+
+### Reconduction de cycle
+
+- **Bloquée si cotisations impayées** — règle stricte, non configurable (contrairement au `tontine_group`)
+- Le trésorier doit solder tous les impayés avant de pouvoir reconduire
+- Nouvelles sessions pré-liées aux **séances du cycle en cours** au moment de la reconduction (les séances sont déjà générées par `CycleService` à l'activation du cycle)
+- Pénalités impayées **reportées** au cycle suivant
+- Fenêtre `renewal_window_days` : modification de parts avec approbation trésorier/président (voir § Parts)
+
+### Clôture
+
+- Comportement configurable via `tontines.close_requires_full_payment` (défaut : `true`)
+- **Si `true`** : clôture bloquée tant qu'il reste des cotisations impayées
+- **Forcer la clôture** (`PUT /tontines/{tId}/force-close`) : réservé au président uniquement — les dettes sont conservées comme tracées dans `contributions`
+- **Si `false`** : clôture possible avec impayés (dettes tracées, non bloquantes)
+- Mode `session_auction` : redistribution de la `caisse_balance` effectuée à la clôture
+
+**Cycle d'activité se clôturant avec tontine encore active :**
+La tontine **continue indépendamment** (elle n'est pas rattachée au cycle). Une notification est envoyée au président/trésorier pour les informer que l'exercice se clôture mais que la tontine est toujours en cours.
+
 ### Parts — modification entre cycles avec approbation
 
 Les parts (`shares`) sont modifiables entre deux cycles uniquement (pendant la fenêtre `renewal_window_days`), mais la modification requiert une **approbation explicite du trésorier ou président** — contrairement au `tontine_group` où la modification est libre.

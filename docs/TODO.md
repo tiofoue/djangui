@@ -106,7 +106,7 @@
 
 ### Module Tontines
 **Migrations :**
-- [ ] `tontines` (session_deadline_time, timezone, is_presentielle, caisse_commune_type, caisse_commune_per_session_amount, caisse_commune_target, grace_period_hours, penalty_type, penalty_value, renewal_window_days)
+- [ ] `tontines` (session_deadline_time, timezone, is_presentielle, caisse_commune_type, caisse_commune_per_session_amount, caisse_commune_target, grace_period_hours, penalty_type, penalty_value, renewal_window_days, close_requires_full_payment)
 - [ ] `tontine_members` (left_at)
 - [ ] `tontine_sessions` (cycle_number NOT NULL DEFAULT 1, seance_id NULL, present_count, moderated_by NULL, opened_at, UNIQUE(tontine_id, cycle_number, session_number))
 - [ ] `contributions` (payment_reference, UNIQUE(session_id, member_id))
@@ -128,8 +128,11 @@
 - [ ] Logique reconduction : incrémenter current_cycle, reset slots_received, nouvelles sessions
 - [ ] Fenêtre renouvellement (renewal_window_days) : modification parts, désinscription, nouvelles adhésions
 - [ ] Reconduction : caisse commune reportée (pas redistribuée), pénalités impayées reportées
-- [ ] Clôture tontine : redistribution caisse commune pro-rata parts, session_auction caisse_balance idem
-- [ ] Clôture tontine : pas de blocage sur impayés, dettes conservées dans contributions
+- [ ] Clôture tontine tontine_group : redistribution caisse commune pro-rata parts, pas de blocage impayés
+- [ ] Clôture tontine association/fed : close_requires_full_payment (défaut true), PUT /tontines/{tId}/force-close réservé président
+- [ ] Reconduction association/fed : bloquée si impayés, nouvelles sessions liées aux séances du cycle en cours
+- [ ] Saisie multi-tontines en séance : vue par tontine (pas de vue consolidée)
+- [ ] Notification président/trésorier si cycle d'activité se clôture avec tontine encore active
 - [ ] `BidController` : PUT /members/me/bid (bidding) + POST/GET /sessions/{sId}/bids (session_auction)
 - [ ] `POST /sessions/{sId}/pay` : confirmation paiement membre (tontine + caisse per_session en une action, dissociable)
 - [ ] `POST /tontines/{tId}/caisse/transactions` : mouvement caisse ad_hoc/dépense (disponible hors session)
