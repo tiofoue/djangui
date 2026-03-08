@@ -125,6 +125,8 @@
 - [ ] Règle bidding : tous les membres doivent avoir bid_amount > 0 avant démarrage
 - [ ] Logique reconduction : incrémenter current_cycle, reset slots_received, nouvelles sessions
 - [ ] `BidController` : PUT /members/me/bid (bidding) + POST/GET /sessions/{sId}/bids (session_auction)
+- [ ] `POST /sessions/{sId}/pay` : confirmation paiement membre (tontine + caisse per_session en une action, dissociable)
+- [ ] `POST /tontines/{tId}/caisse/transactions` : mouvement caisse ad_hoc/dépense (disponible hors session)
 - [ ] `PUT /sessions/{sId}/disburse` : remise explicite au bénéficiaire (non-présentielle obligatoire, bloque clôture)
 - [ ] Clôture présentielle : renseigner amount_received + received_at automatiquement à la clôture
 - [ ] `TontineModeratorFilter` : chaîne fallback session.moderated_by → tontine.moderateur_id → president/treasurer

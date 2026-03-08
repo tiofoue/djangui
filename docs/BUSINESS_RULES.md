@@ -787,6 +787,39 @@ La remise est une **étape explicite** déclenchée par le trésorier après avo
 | Référence paiement | N/A | Optionnelle |
 | Blocage clôture | Non | Oui, jusqu'au `disburse` |
 
+### Saisie des paiements en session présentielle
+
+#### Checklist membre à l'ouverture de session
+
+À l'ouverture d'une session (`status = open`), le trésorier dispose d'une **liste de tous les membres actifs** avec pour chacun :
+- Montant cotisation tontine dû (`shares × amount`)
+- Montant caisse per_session dû (si `caisse_commune_type = per_session|both`)
+- Statut : non payé / partiel / payé
+
+#### Confirmation de paiement — une seule action par membre
+
+`POST /sessions/{sId}/pay` — le trésorier confirme le paiement d'un membre en **une seule action** qui enregistre simultanément :
+1. La cotisation tontine → `contributions`
+2. La caisse per_session → `caisse_commune_transactions` (type `credit`)
+
+Le système ventile en interne ; le trésorier ne fait qu'une seule manipulation par membre.
+
+**Exception — paiement partiel ou dissocié :** si un membre paie l'un sans l'autre (tontine sans caisse, ou caisse sans tontine), le trésorier peut confirmer chaque partie indépendamment via le même endpoint avec les champs correspondants à `null` ou au montant partiel réel.
+
+#### Mouvements caisse commune — disponibles à tout moment
+
+Les mouvements ad_hoc et les dépenses ne sont **pas restreints à une session ouverte** — la caisse est informelle et les opérations peuvent survenir à n'importe quel moment.
+
+`POST /tontines/{tId}/caisse/transactions` — disponible toujours :
+
+| `type` | Usage | Qui |
+|--------|-------|-----|
+| `credit` | Don spontané, apport exceptionnel, collecte ad_hoc | Trésorier / Président |
+| `debit` | Dépense (rafraîchissements, impression, fournitures…) | Trésorier / Président |
+
+- `session_id` facultatif : renseigné si la transaction est liée à une session spécifique, `NULL` sinon
+- `reason` obligatoire pour les débits (motif de la dépense)
+
 ### Référence de paiement (payment_reference)
 
 Pour les tontines `is_presentielle = false` ou les paiements effectués à distance, un champ **`payment_reference`** facultatif est disponible sur chaque cotisation (`contributions`) :
